@@ -6,13 +6,14 @@ import java.util.Map;
 public class SensorManagement {
 
   private Map<Integer, Sensor> sensors;
+  private int nextId = 4;
 
   public SensorManagement() {
     sensors = new HashMap<>(Map.of(
-      0, new Sensor(0, 1),
-      1, new Sensor(1, 1),
-      2, new Sensor(2, 1),
-      3, new Sensor(3, 1)
+      0, new Sensor(0, "Sensor A", 1),
+      1, new Sensor(1, "Sensor B", 1),
+      2, new Sensor(2, "Sensor C", 1),
+      3, new Sensor(3, "Sensor D", 1)
     ));
   }
 
@@ -22,8 +23,10 @@ public class SensorManagement {
 
   public boolean sensorExists(int id) { return sensors.containsKey(id); }
 
-  public void addSensor(Sensor sensor) {
+  public Sensor addSensor(String name, int region) {
+    var sensor = new Sensor(nextId++, name, region);
     sensors.put(sensor.id(), sensor);
+    return sensor;
   }
 
   public void deleteSensor(int id) {

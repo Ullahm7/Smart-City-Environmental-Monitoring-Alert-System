@@ -44,6 +44,8 @@ public class SensorController extends VerticleBase {
     this.router = router;
   }
 
+  private record CreateSensorRequest(String name, int region) {}
+
   @Override
   public Future<?> start() {
     String caPath = config().getString("caCertPath");
@@ -91,13 +93,8 @@ public class SensorController extends VerticleBase {
     });
 
     router.post("/api/sensors/create").handler(ctx -> {
-      //TODO: Take in more limited request body that just has a human readable sensor name and region id
-      Sensor sensor = ctx.body().asJsonObject().mapTo(Sensor.class);
-      if (sensorRepository.sensorExists(sensor.id())) {
-        ctx.response().setStatusCode(409).end("Sensor already exists");
-        return;
-      }
-      this.sensorRepository.addSensor(sensor);
+      var sensor = ctx.body().asJsonObject().mapTo(CreateSensorRequest.class);
+      var newSensor = this.sensorRepository.addSensor(sensor.name(), sensor.region());
 
       try {
         // Generate key pair for sensor, P-256 because of crypto limitations internal to vert.x
@@ -109,7 +106,7 @@ public class SensorController extends VerticleBase {
         // Build certificate with CN = sensor ID
         // Use encoded form to preserve exact DN ordering from CA cert in Issuer. Leads to issues in TLS handshake otherwise
         X500Name issuer = X500Name.getInstance(caCert.getSubjectX500Principal().getEncoded());
-        X500Name subject = new X500Name("CN=" + sensor.id());
+        X500Name subject = new X500Name("CN=" + newSensor.id());
         BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
         Instant now = Instant.now();
         Date notBefore = Date.from(now);
@@ -147,6 +144,7 @@ public class SensorController extends VerticleBase {
         }
 
         JsonObject response = new JsonObject()
+          .put("sensor", newSensor)
           .put("certificate", certWriter.toString())
           .put("privateKey", keyWriter.toString());
 

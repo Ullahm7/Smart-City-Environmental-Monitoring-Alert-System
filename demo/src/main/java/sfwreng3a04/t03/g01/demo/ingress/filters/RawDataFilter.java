@@ -6,8 +6,6 @@ import sfwreng3a04.t03.g01.demo.ingress.SensorData;
 
 public class RawDataFilter extends IngressFilterVerticle {
 
-  int[] regions = {1,2,3,4}; // TODO: Region repository here
-
   @Override
   public void filter(int region, SensorData payload) {
     System.out.println("Raw data received for region " + region + ": " + payload);
