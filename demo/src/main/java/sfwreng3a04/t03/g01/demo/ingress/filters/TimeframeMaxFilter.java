@@ -33,6 +33,7 @@ public class TimeframeMaxFilter extends IngressFilterVerticle {
         payload.type(),
         current.hourStart().toString()
       );
+      System.out.println("Hourly max for " + region + ": " + aggregated);
       vertx.eventBus().publish("region." + region + ".agg.max", aggregated);
 
       buckets.put(key, new HourBucket(hourStart, payload.data(), payload.sensorId()));

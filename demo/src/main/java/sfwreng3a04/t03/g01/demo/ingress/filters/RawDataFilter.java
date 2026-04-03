@@ -10,6 +10,6 @@ public class RawDataFilter extends IngressFilterVerticle {
 
   @Override
   public void filter(int region, SensorData payload) {
-    //TODO: Save raw data to repo
+    System.out.println("Raw data received for region " + region + ": " + payload);
   }
 }

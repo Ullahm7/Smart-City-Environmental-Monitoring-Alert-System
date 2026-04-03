@@ -30,6 +30,7 @@ dependencies {
   implementation("io.vertx:vertx-web")
   implementation("io.vertx:vertx-mqtt")
   implementation("com.fasterxml.jackson.core:jackson-databind")
+  implementation("org.bouncycastle:bcpkix-jdk18on:1.83")
   testImplementation("io.vertx:vertx-junit5")
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
