@@ -1,7 +1,8 @@
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
+use clap::{Parser, ValueEnum};
 use rand_distr::{Distribution, Normal};
-use rumqttc::{AsyncClient, MqttOptions, QoS, TlsConfiguration, Transport};
+use rumqttc::{AsyncClient, MqttOptions, QoS, Transport};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -16,25 +17,65 @@ pub struct CredentialDetails {
 #[serde(rename_all = "camelCase")]
 pub struct SensorData {
     sensor_id: u32,
-    data: f32,
+    data: f64,
     #[serde(rename = "type")]
-    type_: String,
+    type_: SensorType,
     #[serde(with = "time::serde::rfc3339")]
     timestamp: OffsetDateTime,
 }
 
+#[derive(Copy, Clone, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SensorType {
+    AirQuality,
+    Temperature,
+    Humidity,
+    Noise,
+    UvIndex,
+    Rainfall,
+    Wind,
+}
+
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[arg(short = 't', long = "type")]
+    sensor_type: SensorType,
+
+    #[arg(short = 'p', long = "period")]
+    tx_period_seconds: u16,
+
+    #[arg(short = 'm', long = "mean")]
+    reading_mean: f64,
+
+    #[arg(short = 'd', long = "stdev")]
+    reading_dev: f64,
+
+    #[arg(long)]
+    ca_path: PathBuf,
+
+    #[arg(long)]
+    cred_path: PathBuf,
+
+    id: u32,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let mut opts = MqttOptions::new("sensor-5", "127.0.0.1", 8883);
+    let cli = Cli::parse();
 
-    let creds: CredentialDetails = serde_json::from_str(include_str!("../certs/output.json"))?;
+    let mut opts = MqttOptions::new(&format!("sensor-{}", cli.id), "127.0.0.1", 8883);
 
+    let creds: CredentialDetails =
+        serde_json::from_str(&tokio::fs::read_to_string(cli.cred_path).await?)?;
+
+    let ca = tokio::fs::read_to_string(cli.ca_path).await?;
     let mut cert = creds.certificate;
     cert.push('\n');
-    cert.push_str(include_str!("../../demo/certs/ca.crt"));
+    cert.push_str(&ca);
 
     let transport = Transport::tls(
-        include_bytes!("../../demo/certs/ca.crt").to_vec(),
+        ca.as_bytes().to_vec(),
         Some((
             cert.as_bytes().to_vec(),
             creds.private_key.as_bytes().to_vec(),
@@ -46,11 +87,8 @@ async fn main() -> anyhow::Result<()> {
 
     let (client, mut evloop) = AsyncClient::new(opts, 10);
 
-    let ty = "TEMPERATURE";
-    let val_avg = 21f32;
-    let val_stdev = 10f32;
-    let dist = Normal::new(val_avg, val_stdev)?;
-    let period = Duration::from_secs(5);
+    let dist = Normal::new(cli.reading_mean, cli.reading_dev)?;
+    let period = Duration::from_secs(cli.tx_period_seconds as u64);
 
     let mut ticker = tokio::time::interval(period);
 
@@ -61,9 +99,9 @@ async fn main() -> anyhow::Result<()> {
                 let ts = OffsetDateTime::now_utc();
 
                 let data = SensorData {
-                    sensor_id: 5,
+                    sensor_id: cli.id,
                     data: val,
-                    type_: ty.to_string(),
+                    type_: cli.sensor_type,
                     timestamp: ts,
                 };
 
@@ -71,7 +109,7 @@ async fn main() -> anyhow::Result<()> {
 
                 println!("Publishing item {}", payload);
                 client
-                    .publish("sensor/5", QoS::AtLeastOnce, false, payload)
+                    .publish(&format!("sensor/{}", cli.id), QoS::AtLeastOnce, false, payload)
                     .await?;
                 println!("Done");
             }

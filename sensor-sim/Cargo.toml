@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
-clap = "4.6.0"
+clap = { version = "4.5.61", features = ["derive"] }
 rand = "0.10.0"
 rand_distr = "0.6.0"
 rumqttc = "0.25.1"
