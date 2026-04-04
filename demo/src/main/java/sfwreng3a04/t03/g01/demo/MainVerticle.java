@@ -25,11 +25,15 @@ public class MainVerticle extends VerticleBase {
 
     var router = Router.router(vertx);
     var sensorRepo = new SensorManagement();
+    var alertMgmt = new AlertManagement();
 
     return vertx.deployVerticle(new SensorController(router, sensorRepo), new DeploymentOptions()
         .setConfig(new JsonObject()
           .put("caCertPath", "certs/ca.crt")
           .put("caKeyPath", "certs/ca.key")))
+      .compose(id -> vertx.deployVerticle(new AlertController(router, alertMgmt)))
+      .compose(id -> vertx.deployVerticle(new AlertServiceAPI(router, alertMgmt)))
+      .compose(id -> vertx.deployVerticle(new DataServiceAPI(router)))
       .compose(id -> vertx.deployVerticle(new IngressVerticle(sensorRepo), new DeploymentOptions()
         .setConfig(new JsonObject()
           .put("host", "0.0.0.0")
