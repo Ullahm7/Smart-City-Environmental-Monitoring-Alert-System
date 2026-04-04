@@ -1,16 +1,18 @@
 package sfwreng3a04.t03.g01.demo;
 
+import java.security.Security;
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import sfwreng3a04.t03.g01.demo.ingress.SensorData;
 import sfwreng3a04.t03.g01.demo.ingress.SensorDataCodec;
 import sfwreng3a04.t03.g01.demo.repo.SensorManagement;
-
-import java.security.Security;
+import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 
 public class MainVerticle extends VerticleBase {
 
@@ -24,7 +26,10 @@ public class MainVerticle extends VerticleBase {
     vertx.eventBus().registerDefaultCodec(SensorData.class, new SensorDataCodec());
 
     var router = Router.router(vertx);
+    var regionRepo = new RegionManagement();
     var sensorRepo = new SensorManagement();
+
+    router.route("/region/*").subRouter(RegionController.createRouter(vertx, regionRepo));
 
     return vertx.deployVerticle(new SensorController(router, sensorRepo), new DeploymentOptions()
         .setConfig(new JsonObject()
