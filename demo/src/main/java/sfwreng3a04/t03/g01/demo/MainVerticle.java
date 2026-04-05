@@ -27,8 +27,8 @@ public class MainVerticle extends VerticleBase {
     vertx.eventBus().registerDefaultCodec(SensorData.class, new SensorDataCodec());
 
     var router = Router.router(vertx);
-    var regionRepo = new RegionManagement();
-    var sensorRepo = new SensorManagement();
+    var regionRepo = new RegionManagement(vertx.eventBus());
+    var sensorRepo = new SensorManagement(vertx.eventBus());
     var auditLogRepo = new AuditLogManagement();
 
     router.route("/region*").subRouter(RegionController.createRouter(vertx, regionRepo));
