@@ -3,6 +3,7 @@ import Landing from "./pages/Landing.jsx";
 import Region from "./pages/Region.jsx";
 import Sensor from "./pages/Sensor.jsx";
 import Audit from "./pages/Audit.jsx";
+import Alert from "./pages/Alert.jsx";
 
 import './App.css'
 
@@ -16,6 +17,7 @@ function App() {
             <Route path="region" element={<Region/>} />?
             <Route path="sensor" element={<Sensor />} />?
             <Route path="audit" element={<Audit/>}/>?
+            <Route path="alert" element={<Alert />} />
         </Routes>
     </BrowserRouter>
   )
