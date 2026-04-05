@@ -94,17 +94,21 @@ public class SensorController extends VerticleBase {
       return;
     }
 
-    UUID id = UUID.fromString(idParam);
-    Sensor sensor = this.sensorRepository.getSensor(id);
+    try {
+      UUID id = UUID.fromString(idParam);
+      Sensor sensor = this.sensorRepository.getSensor(id);
 
-    if (sensor == null) {
-      ctx.response().setStatusCode(404).end("Sensor not found");
-      return;
+      if (sensor == null) {
+        ctx.response().setStatusCode(404).end("Sensor not found");
+        return;
+      }
+
+      ctx.response()
+        .putHeader("content-type", "application/json")
+        .end(JsonObject.mapFrom(sensor).encode());
+    }catch(IllegalArgumentException _) {
+      ctx.response().setStatusCode(400).end("Invalid sensor ID");
     }
-
-    ctx.response()
-      .putHeader("content-type", "application/json")
-      .end(JsonObject.mapFrom(sensor).encode());
   }
 
   private void getAll(RoutingContext ctx) {
