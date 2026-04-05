@@ -7,6 +7,7 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import sfwreng3a04.t03.g01.demo.repo.Region;
 import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 
@@ -19,8 +20,11 @@ public class RegionController {
     }
 
     public static Router createRouter(Vertx vertx, RegionManagement regionRepo) {
+
         var controller = new RegionController(regionRepo);
         var router = Router.router(vertx);
+
+        router.route().handler(BodyHandler.create());
 
         router.get("/").handler(controller::getAll);
         router.get("/:id").handler(controller::getById);
@@ -34,6 +38,9 @@ public class RegionController {
     private void getAll(RoutingContext ctx) {
 
         ArrayList<Region> regionList = regionRepo.retrieveRegionList();
+
+        System.out.println(Json.encode(regionList));
+
         ctx.response()
             .putHeader("Content-Type", "application/json")
             .end(Json.encode(regionList)); 
@@ -42,7 +49,7 @@ public class RegionController {
     // Retrieves single region by ID
     private void getById(RoutingContext ctx) {
 
-        int id = Integer.parseInt(ctx.pathParam("id"));
+        String id = ctx.pathParam("id");
 
         Region region = regionRepo.retrieveRegion(id);
 
@@ -53,24 +60,24 @@ public class RegionController {
 
     // Creates a single region
     private void create(RoutingContext ctx) {
-        ctx.request().body().onSuccess(body -> {
-            JsonObject data = body.toJsonObject();
+        JsonObject data = ctx.body().asJsonObject();
 
-            regionRepo.addRegion(data.getString("regionName"),
-                                 data.getInteger("regionID"),
-                                 data.getDouble("minLat"),
-                                 data.getDouble("minLon"),
-                                 data.getDouble("maxLat"),
-                                 data.getDouble("maxLon"));
+        System.out.println(data);
 
-            ctx.response().setStatusCode(201).end();
-        });
+        regionRepo.addRegion(data.getString("regionName"),
+                            data.getString("regionID"),
+                            data.getDouble("minLat"),
+                            data.getDouble("minLon"),
+                            data.getDouble("maxLat"),
+                            data.getDouble("maxLon"));
+
+        ctx.response().setStatusCode(201).end();
     }
 
     // Deletes a single region by ID
     private void deleteById(RoutingContext ctx) {
         
-        int id = Integer.parseInt(ctx.pathParam("id"));
+        String id = ctx.pathParam("id");
         regionRepo.deleteRegion(id);
 
         ctx.response().setStatusCode(201).end();

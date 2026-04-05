@@ -5,11 +5,11 @@ import java.util.HashMap;
 public class Region {
     
     private String regionName;
-    private int regionID;
-    private HashMap<String, Double> coordinates;
+    private String regionID;
+    private HashMap<String, Double> coordinates = new HashMap<>();
 
 
-    public Region(String regionName, int regionID, double minLat, double minLon, double maxLat, double maxLon) {
+    public Region(String regionName, String regionID, double minLat, double minLon, double maxLat, double maxLon) {
 
        this.regionName = regionName;
        this.regionID = regionID;
@@ -20,8 +20,16 @@ public class Region {
        this.coordinates.put("maxLon", maxLon);
     }
 
-    public int getRegionID() {
+    public String getRegionID() {
         return regionID;
+    }
+
+    public String getRegionName() {
+        return regionName;
+    }
+
+    public HashMap<String, Double> getCoordinates() {
+        return coordinates;
     }
     
 }
