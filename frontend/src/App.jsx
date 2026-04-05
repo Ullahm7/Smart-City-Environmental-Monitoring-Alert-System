@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Landing from "./pages/Landing.jsx";
 import Region from "./pages/Region.jsx";
+import Sensor from "./pages/Sensor.jsx";
 import Audit from "./pages/Audit.jsx";
 
 import './App.css'
@@ -13,6 +14,7 @@ function App() {
             <Route path="/" element={<Navigate to="/landing" replace />} />
             <Route path="landing" element={<Landing/>} />
             <Route path="region" element={<Region/>} />?
+            <Route path="sensor" element={<Sensor />} />?
             <Route path="audit" element={<Audit/>}/>?
         </Routes>
     </BrowserRouter>

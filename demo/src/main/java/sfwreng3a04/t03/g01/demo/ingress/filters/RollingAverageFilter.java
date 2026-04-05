@@ -1,7 +1,9 @@
 package sfwreng3a04.t03.g01.demo.ingress.filters;
 
+import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
 import sfwreng3a04.t03.g01.demo.ingress.SensorData;
 import sfwreng3a04.t03.g01.demo.ingress.SensorType;
+import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -16,13 +18,17 @@ import java.util.concurrent.TimeUnit;
 public class RollingAverageFilter extends IngressFilterVerticle {
   private static final long WINDOW_MILLIS = 5 * 60 * 1000; // 5 minutes
 
+  public RollingAverageFilter(RegionManagement regionRepo) {
+    super(regionRepo);
+  }
+
   private record DataPoint(double value, Instant timestamp) {
   }
 
   private final Map<String, Deque<DataPoint>> windowData = new HashMap<>();
 
   @Override
-  public void filter(int region, SensorData payload) {
+  public void filter(String region, AnonymizedSensorData payload) {
     SensorType type = payload.type();
     String key = region + ":" + type.name();
 
@@ -49,8 +55,8 @@ public class RollingAverageFilter extends IngressFilterVerticle {
       .average()
       .orElse(0.0);
 
-    SensorData aggregated = new SensorData(
-      payload.sensorId(),
+    var aggregated = new AnonymizedSensorData(
+      payload.regionId(),
       average,
       type,
       payload.timestamp()

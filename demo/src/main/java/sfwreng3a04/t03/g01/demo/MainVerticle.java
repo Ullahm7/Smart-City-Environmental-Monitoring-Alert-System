@@ -38,7 +38,7 @@ public class MainVerticle extends VerticleBase {
         .setConfig(new JsonObject()
           .put("caCertPath", "certs/ca.crt")
           .put("caKeyPath", "certs/ca.key")))
-      .compose(id -> vertx.deployVerticle(new IngressVerticle(sensorRepo), new DeploymentOptions()
+      .compose(id -> vertx.deployVerticle(new IngressVerticle(sensorRepo, regionRepo), new DeploymentOptions()
         .setConfig(new JsonObject()
           .put("host", "0.0.0.0")
           .put("port", 8883)
