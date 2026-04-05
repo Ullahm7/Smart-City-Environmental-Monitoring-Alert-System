@@ -11,6 +11,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import sfwreng3a04.t03.g01.demo.ingress.SensorData;
 import sfwreng3a04.t03.g01.demo.ingress.SensorDataCodec;
+import sfwreng3a04.t03.g01.demo.repo.AuditLogManagement;
 import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 import sfwreng3a04.t03.g01.demo.repo.SensorManagement;
 
@@ -28,8 +29,10 @@ public class MainVerticle extends VerticleBase {
     var router = Router.router(vertx);
     var regionRepo = new RegionManagement();
     var sensorRepo = new SensorManagement();
+    var auditLogRepo = new AuditLogManagement();
 
     router.route("/region*").subRouter(RegionController.createRouter(vertx, regionRepo));
+    router.route("/audit*").subRouter(AuditLogController.createRouter(vertx, auditLogRepo));
 
     return vertx.deployVerticle(new SensorController(router, sensorRepo), new DeploymentOptions()
         .setConfig(new JsonObject()
