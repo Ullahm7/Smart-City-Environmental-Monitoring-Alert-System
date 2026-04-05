@@ -2,8 +2,10 @@ package sfwreng3a04.t03.g01.demo;
 
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -35,6 +37,7 @@ import java.util.UUID;
 public class SensorController extends VerticleBase {
 
   private final SensorManagement sensorRepository;
+  private final Router parentRouter;
   private final Router router;
 
   private X509Certificate caCert;
@@ -42,7 +45,8 @@ public class SensorController extends VerticleBase {
 
   public SensorController(Router router, SensorManagement sensorRepository) {
     this.sensorRepository = sensorRepository;
-    this.router = router;
+    this.router = Router.router(vertx);
+    this.parentRouter = router;
   }
 
   private record CreateSensorRequest(String name, UUID region) {}
@@ -73,104 +77,122 @@ public class SensorController extends VerticleBase {
 
     router.route().handler(BodyHandler.create());
 
-    router.get("/api/sensors/get").handler(ctx -> {
-      String idParam = ctx.queryParams().get("id");
-      if (idParam == null) {
-        ctx.response().setStatusCode(400).end("Missing id parameter");
-        return;
-      }
+    router.get("/:id").handler(this::getById);
+    router.post("/").handler(this::create);
+    router.delete("/:id").handler(this::delete);
+    router.get("/").handler(this::getAll);
 
-      UUID id = UUID.fromString(idParam);
-      Sensor sensor = this.sensorRepository.getSensor(id);
-
-      if (sensor == null) {
-        ctx.response().setStatusCode(404).end("Sensor not found");
-        return;
-      }
-
-      ctx.response()
-        .putHeader("content-type", "application/json")
-        .end(JsonObject.mapFrom(sensor).encode());
-    });
-
-    router.post("/api/sensors/create").handler(ctx -> {
-      var sensor = ctx.body().asJsonObject().mapTo(CreateSensorRequest.class);
-      var newSensor = this.sensorRepository.addSensor(UUID.randomUUID(), sensor.name(), sensor.region());
-
-      try {
-        // Generate key pair for sensor, P-256 because of crypto limitations internal to vert.x
-        KeyPair sensorKeyPair;
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "BC");
-        keyGen.initialize(new ECGenParameterSpec("secp256r1"));
-        sensorKeyPair = keyGen.generateKeyPair();
-
-        // Build certificate with CN = sensor ID
-        // Use encoded form to preserve exact DN ordering from CA cert in Issuer. Leads to issues in TLS handshake otherwise
-        X500Name issuer = X500Name.getInstance(caCert.getSubjectX500Principal().getEncoded());
-        X500Name subject = new X500Name("CN=" + newSensor.id());
-        BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
-        Instant now = Instant.now();
-        Date notBefore = Date.from(now);
-        Date notAfter = Date.from(now.plus(365, ChronoUnit.DAYS));
-
-        X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
-          issuer,
-          serial,
-          notBefore,
-          notAfter,
-          subject,
-          sensorKeyPair.getPublic()
-        );
-
-        // Sign with CA private key (P-256)
-        ContentSigner signer = new JcaContentSignerBuilder("SHA256withECDSA")
-          .setProvider("BC")
-          .build(caPrivateKey);
-        X509CertificateHolder certHolder = certBuilder.build(signer);
-        X509Certificate sensorCert = new JcaX509CertificateConverter()
-          .setProvider("BC")
-          .getCertificate(certHolder);
-
-        // Convert to PEM format
-        StringWriter certWriter = new StringWriter();
-        try (JcaPEMWriter pemWriter = new JcaPEMWriter(certWriter)) {
-          pemWriter.writeObject(sensorCert);
-        }
-
-        StringWriter keyWriter = new StringWriter();
-        try (PemWriter pemWriter = new PemWriter(keyWriter)) {
-          // Use PemObject with explicit type for PKCS#8 format
-          PemObject pkcs8Pem = new PemObject("PRIVATE KEY", sensorKeyPair.getPrivate().getEncoded());
-          pemWriter.writeObject(pkcs8Pem);
-        }
-
-        JsonObject response = new JsonObject()
-          .put("sensor", newSensor)
-          .put("certificate", certWriter.toString())
-          .put("privateKey", keyWriter.toString());
-
-        ctx.response()
-          .setStatusCode(201)
-          .putHeader("content-type", "application/json")
-          .end(response.encode());
-      } catch (Exception e) {
-        ctx.response().setStatusCode(500).end("Failed to generate certificate: " + e.getMessage());
-      }
-    });
-
-    router.post("/api/sensors/delete").handler(ctx -> {
-      JsonObject body = ctx.body().asJsonObject();
-      UUID id = (UUID) body.getValue("id");
-
-      if (id == null) {
-        ctx.response().setStatusCode(400).end("Missing id");
-        return;
-      }
-
-      this.sensorRepository.deleteSensor(id);
-      ctx.response().setStatusCode(204).end();
-    });
+    parentRouter.route("/sensors*").subRouter(router);
 
     return Future.succeededFuture();
+  }
+
+  private void getById(RoutingContext ctx) {
+    String idParam = ctx.pathParam("id");
+    if (idParam == null) {
+      ctx.response().setStatusCode(400).end("Missing id parameter");
+      return;
+    }
+
+    UUID id = UUID.fromString(idParam);
+    Sensor sensor = this.sensorRepository.getSensor(id);
+
+    if (sensor == null) {
+      ctx.response().setStatusCode(404).end("Sensor not found");
+      return;
+    }
+
+    ctx.response()
+      .putHeader("content-type", "application/json")
+      .end(JsonObject.mapFrom(sensor).encode());
+  }
+
+  private void getAll(RoutingContext ctx) {
+    var sensors = sensorRepository.retrieveSensorList();
+
+    ctx.response()
+      .putHeader("content-type", "application/json")
+      .end(Json.encode(sensors));
+  }
+
+  private void create(RoutingContext ctx) {
+    var sensor = ctx.body().asJsonObject().mapTo(CreateSensorRequest.class);
+    var newSensor = this.sensorRepository.addSensor(UUID.randomUUID(), sensor.name(), sensor.region());
+
+    try {
+      // Generate key pair for sensor, P-256 because of crypto limitations internal to vert.x
+      KeyPair sensorKeyPair;
+      KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC", "BC");
+      keyGen.initialize(new ECGenParameterSpec("secp256r1"));
+      sensorKeyPair = keyGen.generateKeyPair();
+
+      // Build certificate with CN = sensor ID
+      // Use encoded form to preserve exact DN ordering from CA cert in Issuer. Leads to issues in TLS handshake otherwise
+      X500Name issuer = X500Name.getInstance(caCert.getSubjectX500Principal().getEncoded());
+      X500Name subject = new X500Name("CN=" + newSensor.id());
+      BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
+      Instant now = Instant.now();
+      Date notBefore = Date.from(now);
+      Date notAfter = Date.from(now.plus(365, ChronoUnit.DAYS));
+
+      X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
+        issuer,
+        serial,
+        notBefore,
+        notAfter,
+        subject,
+        sensorKeyPair.getPublic()
+      );
+
+      // Sign with CA private key (P-256)
+      ContentSigner signer = new JcaContentSignerBuilder("SHA256withECDSA")
+        .setProvider("BC")
+        .build(caPrivateKey);
+      X509CertificateHolder certHolder = certBuilder.build(signer);
+      X509Certificate sensorCert = new JcaX509CertificateConverter()
+        .setProvider("BC")
+        .getCertificate(certHolder);
+
+      // Convert to PEM format
+      StringWriter certWriter = new StringWriter();
+      try (JcaPEMWriter pemWriter = new JcaPEMWriter(certWriter)) {
+        pemWriter.writeObject(sensorCert);
+      }
+
+      StringWriter keyWriter = new StringWriter();
+      try (PemWriter pemWriter = new PemWriter(keyWriter)) {
+        // Use PemObject with explicit type for PKCS#8 format
+        PemObject pkcs8Pem = new PemObject("PRIVATE KEY", sensorKeyPair.getPrivate().getEncoded());
+        pemWriter.writeObject(pkcs8Pem);
+      }
+
+      JsonObject response = new JsonObject()
+        .put("sensor", newSensor)
+        .put("certificate", certWriter.toString())
+        .put("privateKey", keyWriter.toString());
+
+      ctx.response()
+        .setStatusCode(201)
+        .putHeader("content-type", "application/json")
+        .end(response.encode());
+    } catch (Exception e) {
+      ctx.response().setStatusCode(500).end("Failed to generate certificate: " + e.getMessage());
+    }
+  }
+
+  private void delete(RoutingContext ctx) {
+    String id = ctx.pathParam("id");
+
+    if (id == null) {
+      ctx.response().setStatusCode(400).end("Missing id");
+      return;
+    }
+
+    try {
+      this.sensorRepository.deleteSensor(UUID.fromString(id));
+      ctx.response().setStatusCode(204).end();
+    } catch(IllegalArgumentException _) {
+      ctx.response().setStatusCode(400).end("Invalid sensor ID");
+    }
   }
 }

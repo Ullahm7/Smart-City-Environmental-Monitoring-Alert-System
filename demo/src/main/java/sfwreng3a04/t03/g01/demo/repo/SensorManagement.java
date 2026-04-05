@@ -2,9 +2,7 @@ package sfwreng3a04.t03.g01.demo.repo;
 
 import io.vertx.core.eventbus.EventBus;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class SensorManagement {
 
@@ -32,5 +30,9 @@ public class SensorManagement {
   public void deleteSensor(UUID id) {
     sensors.remove(id);
     eventBus.publish("mgmt.sensor.deleted", id);
+  }
+
+  public List<Sensor> retrieveSensorList() {
+    return new ArrayList<>(sensors.values());
   }
 }
