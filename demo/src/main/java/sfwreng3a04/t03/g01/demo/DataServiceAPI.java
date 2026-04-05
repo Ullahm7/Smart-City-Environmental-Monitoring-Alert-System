@@ -1,12 +1,13 @@
 package sfwreng3a04.t03.g01.demo;
-
+ 
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
-import sfwreng3a04.t03.g01.demo.ingress.SensorData;
+import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
 import sfwreng3a04.t03.g01.demo.ingress.SensorType;
+import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
  
 import java.util.HashMap;
 import java.util.Map;
@@ -15,127 +16,112 @@ import java.util.Map;
  * Caches the most recent sensor readings from the event bus and exposes them
  * via a read-only REST API suitable for public/third-party consumption.
  *
- * <pre>
- * Event bus (consumed):
- *   region.{N}.ingress     – raw SensorData   → stored under key "region:sensorId:TYPE"
- *   region.{N}.agg.avg     – 5-min averages   → stored under key "avg:region:TYPE"
- *   region.{N}.agg.max     – hourly maximums  → stored under key "max:region:TYPE"
+ * Event bus topics consumed:
+ *   region.{regionId}.ingress    – raw AnonymizedSensorData
+ *   region.{regionId}.agg.avg   – 5-minute rolling averages
+ *   region.{regionId}.agg.max   – hourly maximums
  *
- * HTTP endpoints (all read-only):
+ * Also listens on mgmt.region.created to dynamically subscribe to new regions
+ * without requiring a restart.
+ *
+ * HTTP endpoints (all read-only, no auth required — public API):
+ *
  *   GET /api/data/current
- *       ?region={N}            – filter by region (optional)
- *       &type={SENSOR_TYPE}    – filter by SensorType (optional)
- *       Returns the latest raw reading for every matching sensor.
+ *       ?region={regionId}       – filter by region ID string (optional)
+ *       &type={SENSOR_TYPE}      – filter by SensorType name (optional)
+ *       Returns a JSON array of the latest raw reading per region+sensor+type.
  *
  *   GET /api/data/aggregated
- *       ?region={N}            – required
- *       &type={SENSOR_TYPE}    – required
- *       &metric=avg|max        – optional, defaults to "avg"
- *       Returns the latest rolling-average or hourly-maximum for the region+type pair.
- * </pre>
+ *       ?region={regionId}       – required
+ *       &type={SENSOR_TYPE}      – required
+ *       &metric=avg|max          – optional, defaults to "avg"
+ *       Returns the latest rolling-average or hourly-maximum for that region+type.
  */
 public class DataServiceAPI extends VerticleBase {
  
-  // Must stay in sync with IngressFilterVerticle / IngressVerticle.
-  // TODO: Replace with shared RegionManagement repo.
-  private static final int[] REGIONS = {1, 2, 3, 4};
- 
   private final Router router;
+  private final RegionManagement regionRepo;
  
   /**
-   * Key: "{region}:{sensorId}:{TYPE}"  → latest raw SensorData from that sensor
+   * Key: "{regionId}:{regionUUID}:{TYPE}"  → latest raw AnonymizedSensorData
+   * We include regionUUID in the key so that multiple sensors in the same
+   * region each get their own cache entry (regionId in AnonymizedSensorData
+   * carries the UUID assigned at publish time).
    */
-  private final Map<String, SensorData> latestRaw = new HashMap<>();
+  private final Map<String, AnonymizedSensorData> latestRaw = new HashMap<>();
  
   /**
-   * Key: "{region}:{TYPE}"  → latest 5-minute rolling-average SensorData
+   * Key: "{regionId}:{TYPE}"  → latest 5-minute rolling-average
    */
-  private final Map<String, SensorData> latestAvg = new HashMap<>();
+  private final Map<String, AnonymizedSensorData> latestAvg = new HashMap<>();
  
   /**
-   * Key: "{region}:{TYPE}"  → latest hourly-maximum SensorData
+   * Key: "{regionId}:{TYPE}"  → latest hourly-maximum
    */
-  private final Map<String, SensorData> latestMax = new HashMap<>();
+  private final Map<String, AnonymizedSensorData> latestMax = new HashMap<>();
  
-  public DataServiceAPI(Router router) {
+  public DataServiceAPI(Router router, RegionManagement regionRepo) {
     this.router = router;
+    this.regionRepo = regionRepo;
   }
  
   @Override
   public Future<?> start() {
-    // ── Event bus subscriptions ──────────────────────────────────────────────
-    for (int region : REGIONS) {
-      int r = region;
  
-      // Raw readings — key includes sensorId so we keep one entry per sensor
-      vertx.eventBus().<SensorData>consumer("region." + region + ".ingress", msg -> {
-        SensorData d = msg.body();
-        latestRaw.put(r + ":" + d.sensorId() + ":" + d.type().name(), d);
-      });
- 
-      // 5-minute rolling averages — one entry per region+type
-      vertx.eventBus().<SensorData>consumer("region." + region + ".agg.avg", msg -> {
-        SensorData d = msg.body();
-        latestAvg.put(r + ":" + d.type().name(), d);
-      });
- 
-      // Hourly maximums — one entry per region+type
-      vertx.eventBus().<SensorData>consumer("region." + region + ".agg.max", msg -> {
-        SensorData d = msg.body();
-        latestMax.put(r + ":" + d.type().name(), d);
-      });
+    // ── Subscribe to all regions that already exist ───────────────────────────
+    for (var region : regionRepo.retrieveRegionList()) {
+      subscribeToRegion(region.getRegionID());
     }
  
-    // ── HTTP routes ──────────────────────────────────────────────────────────
+    // ── Dynamically subscribe when new regions are created ────────────────────
+    vertx.eventBus().<String>consumer("mgmt.region.created", msg ->
+      subscribeToRegion(msg.body())
+    );
+ 
+    // ── HTTP routes ───────────────────────────────────────────────────────────
  
     /*
      * GET /api/data/current
      *
-     * Query params (all optional):
-     *   region – integer region ID
+     * Optional query params:
+     *   region – region ID string
      *   type   – SensorType name (case-insensitive)
      *
-     * Returns a JSON array of the latest raw SensorData objects matching
-     * the supplied filters.  If no filters are given, returns everything.
+     * Returns a JSON array of all cached raw readings matching the filters.
+     * If no filters are supplied, returns everything currently cached.
      */
     router.get("/api/data/current").handler(ctx -> {
       String regionParam = ctx.queryParams().get("region");
       String typeParam   = ctx.queryParams().get("type");
  
-      Integer regionFilter = null;
       SensorType typeFilter = null;
- 
-      if (regionParam != null) {
-        try {
-          regionFilter = Integer.parseInt(regionParam);
-        } catch (NumberFormatException e) {
-          ctx.response().setStatusCode(400).end("Invalid region — must be an integer");
-          return;
-        }
-      }
  
       if (typeParam != null) {
         try {
           typeFilter = SensorType.valueOf(typeParam.toUpperCase());
         } catch (IllegalArgumentException e) {
           ctx.response().setStatusCode(400)
-            .end("Invalid type. Valid values: AIR_QUALITY, TEMPERATURE, HUMIDITY, "
-              + "NOISE, UV_INDEX, RAINFALL, WIND");
+            .end("Invalid type. Valid values: "
+              + "AIR_QUALITY, TEMPERATURE, HUMIDITY, NOISE, UV_INDEX, RAINFALL, WIND");
           return;
         }
       }
  
+      // Capture for lambda use
+      final SensorType finalTypeFilter = typeFilter;
+ 
       JsonArray results = new JsonArray();
-      for (Map.Entry<String, SensorData> entry : latestRaw.entrySet()) {
-        // Key format: "{region}:{sensorId}:{TYPE}"
+ 
+      for (Map.Entry<String, AnonymizedSensorData> entry : latestRaw.entrySet()) {
+        // Key format: "{regionId}:{regionUUID}:{TYPE}"
         String[] parts = entry.getKey().split(":");
-        int entryRegion = Integer.parseInt(parts[0]);
-        SensorData d = entry.getValue();
+        String entryRegion = parts[0];
+        AnonymizedSensorData d = entry.getValue();
  
-        if (regionFilter != null && entryRegion != regionFilter) continue;
-        if (typeFilter   != null && d.type() != typeFilter)       continue;
+        if (regionParam != null && !entryRegion.equals(regionParam)) continue;
+        if (finalTypeFilter != null && d.type() != finalTypeFilter)   continue;
  
-        results.add(sensorDataToJson(d, entryRegion));
+        results.add(anonymizedToJson(d, entryRegion));
       }
  
       ctx.response()
@@ -146,10 +132,12 @@ public class DataServiceAPI extends VerticleBase {
     /*
      * GET /api/data/aggregated
      *
-     * Query params:
-     *   region – required integer region ID
-     *   type   – required SensorType name (case-insensitive)
-     *   metric – optional "avg" (default) or "max"
+     * Required query params:
+     *   region – region ID string
+     *   type   – SensorType name (case-insensitive)
+     *
+     * Optional query params:
+     *   metric – "avg" (default) or "max"
      *
      * Returns a single JSON object with the latest aggregated value for the
      * given region+type pair, plus a "metric" field indicating which aggregate
@@ -166,36 +154,30 @@ public class DataServiceAPI extends VerticleBase {
         return;
       }
  
-      int region;
-      try {
-        region = Integer.parseInt(regionParam);
-      } catch (NumberFormatException e) {
-        ctx.response().setStatusCode(400).end("Invalid region — must be an integer");
-        return;
-      }
- 
       SensorType type;
       try {
         type = SensorType.valueOf(typeParam.toUpperCase());
       } catch (IllegalArgumentException e) {
         ctx.response().setStatusCode(400)
-          .end("Invalid type. Valid values: AIR_QUALITY, TEMPERATURE, HUMIDITY, "
-            + "NOISE, UV_INDEX, RAINFALL, WIND");
+          .end("Invalid type. Valid values: "
+            + "AIR_QUALITY, TEMPERATURE, HUMIDITY, NOISE, UV_INDEX, RAINFALL, WIND");
         return;
       }
  
       boolean useMax = "max".equalsIgnoreCase(metricParam);
       String metric  = useMax ? "max" : "avg";
-      String key     = region + ":" + type.name();
-      SensorData data = useMax ? latestMax.get(key) : latestAvg.get(key);
+      String key     = regionParam + ":" + type.name();
+ 
+      AnonymizedSensorData data = useMax ? latestMax.get(key) : latestAvg.get(key);
  
       if (data == null) {
         ctx.response().setStatusCode(404)
-          .end("No aggregated data yet for region=" + region + " type=" + type);
+          .end("No aggregated data yet for region=" + regionParam + " type=" + type
+            + " metric=" + metric);
         return;
       }
  
-      JsonObject response = sensorDataToJson(data, region)
+      JsonObject response = anonymizedToJson(data, regionParam)
         .put("metric", metric);
  
       ctx.response()
@@ -206,16 +188,45 @@ public class DataServiceAPI extends VerticleBase {
     return Future.succeededFuture();
   }
  
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ── Private helpers ───────────────────────────────────────────────────────────
  
   /**
-   * Converts a {@link SensorData} to a {@link JsonObject}, adding an explicit
-   * {@code region} field (which SensorData itself does not carry).
+   * Registers event bus consumers for all three topics of a given region.
+   * Safe to call once per region — triggered either at startup (existing
+   * regions) or dynamically via mgmt.region.created events.
    */
-  private JsonObject sensorDataToJson(SensorData d, int region) {
+  private void subscribeToRegion(String regionId) {
+    // Raw ingress — keyed per regionUUID so multiple data points coexist
+    vertx.eventBus().<AnonymizedSensorData>consumer("region." + regionId + ".ingress", msg -> {
+      AnonymizedSensorData d = msg.body();
+      String key = regionId + ":" + d.regionId().toString() + ":" + d.type().name();
+      latestRaw.put(key, d);
+    });
+ 
+    // 5-minute rolling average — one entry per region+type
+    vertx.eventBus().<AnonymizedSensorData>consumer("region." + regionId + ".agg.avg", msg -> {
+      AnonymizedSensorData d = msg.body();
+      latestAvg.put(regionId + ":" + d.type().name(), d);
+    });
+ 
+    // Hourly maximum — one entry per region+type
+    vertx.eventBus().<AnonymizedSensorData>consumer("region." + regionId + ".agg.max", msg -> {
+      AnonymizedSensorData d = msg.body();
+      latestMax.put(regionId + ":" + d.type().name(), d);
+    });
+ 
+    System.out.println("DataServiceAPI: subscribed to region " + regionId);
+  }
+ 
+  /**
+   * Converts an {@link AnonymizedSensorData} to a {@link JsonObject} for the
+   * HTTP response, adding an explicit {@code region} string field.
+   * Note: sensorId is intentionally absent — this is anonymized data.
+   */
+  private JsonObject anonymizedToJson(AnonymizedSensorData d, String region) {
     return new JsonObject()
-      .put("sensorId",  d.sensorId())
       .put("region",    region)
+      .put("regionId",  d.regionId().toString())
       .put("type",      d.type().name())
       .put("data",      d.data())
       .put("timestamp", d.timestamp());

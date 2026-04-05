@@ -49,16 +49,14 @@ public class AlertController extends VerticleBase {
         return;
       }
  
-      String name       = body.getString("name");
-      Integer region    = body.getInteger("region");
-      String typeStr    = body.getString("type");
-      Double threshold  = body.getDouble("threshold");
-      String condStr    = body.getString("condition");
+      String name      = body.getString("name");
+      String region    = body.getString("region");   // was body.getInteger()
+      String typeStr   = body.getString("type");
+      Double threshold = body.getDouble("threshold");
+      String condStr   = body.getString("condition");
  
-      if (name == null || region == null || typeStr == null
-        || threshold == null || condStr == null) {
-        ctx.response().setStatusCode(400)
-          .end("Missing required fields: name, region, type, threshold, condition");
+      if (name == null || region == null || typeStr == null || threshold == null || condStr == null) {
+        ctx.response().setStatusCode(400).end("Missing required fields: name, region, type, threshold, condition");
         return;
       }
  
