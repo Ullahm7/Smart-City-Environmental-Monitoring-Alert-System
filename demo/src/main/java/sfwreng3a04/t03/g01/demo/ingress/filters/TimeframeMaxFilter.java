@@ -1,22 +1,29 @@
 package sfwreng3a04.t03.g01.demo.ingress.filters;
 
+import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
 import sfwreng3a04.t03.g01.demo.ingress.SensorData;
+import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class TimeframeMaxFilter extends IngressFilterVerticle {
 
-  private record HourBucket(Instant hourStart, double maxValue, int sensorId) {
+  public TimeframeMaxFilter(RegionManagement regionRepo) {
+    super(regionRepo);
+  }
+
+  private record HourBucket(Instant hourStart, double maxValue, UUID regionId) {
   }
 
   private final Map<String, HourBucket> buckets = new HashMap<>();
 
   @Override
-  public void filter(int region, SensorData payload) {
+  public void filter(String region, AnonymizedSensorData payload) {
     String key = region + ":" + payload.type().name();
 
     Instant timestamp = DateTimeFormatter.ISO_DATE_TIME
@@ -24,11 +31,11 @@ public class TimeframeMaxFilter extends IngressFilterVerticle {
 
     Instant hourStart = timestamp.truncatedTo(ChronoUnit.HOURS);
 
-    HourBucket current = buckets.computeIfAbsent(key, k -> new HourBucket(hourStart, payload.data(), payload.sensorId()));
+    HourBucket current = buckets.computeIfAbsent(key, k -> new HourBucket(hourStart, payload.data(), payload.regionId()));
 
     if (!current.hourStart().equals(hourStart)) {
-      SensorData aggregated = new SensorData(
-        current.sensorId(),
+      var aggregated = new AnonymizedSensorData(
+        current.regionId(),
         current.maxValue(),
         payload.type(),
         current.hourStart().toString()
@@ -36,10 +43,10 @@ public class TimeframeMaxFilter extends IngressFilterVerticle {
       System.out.println("Hourly max for " + region + ": " + aggregated);
       vertx.eventBus().publish("region." + region + ".agg.max", aggregated);
 
-      buckets.put(key, new HourBucket(hourStart, payload.data(), payload.sensorId()));
+      buckets.put(key, new HourBucket(hourStart, payload.data(), payload.regionId()));
     } else {
       double newMax = Math.max(current.maxValue(), payload.data());
-      buckets.put(key, new HourBucket(current.hourStart(), newMax, current.sensorId()));
+      buckets.put(key, new HourBucket(current.hourStart(), newMax, current.regionId()));
     }
   }
 }

@@ -4,6 +4,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.MessageCodec;
 import io.vertx.core.json.JsonObject;
 
+import java.util.UUID;
+
 public class SensorDataCodec implements MessageCodec<SensorData, SensorData> {
 
   @Override
@@ -25,7 +27,7 @@ public class SensorDataCodec implements MessageCodec<SensorData, SensorData> {
     String encoded = buffer.getString(pos, pos + length);
     JsonObject json = new JsonObject(encoded);
     return new SensorData(
-      json.getInteger("sensorId"),
+      UUID.fromString(json.getString("sensorId")),
       json.getDouble("data"),
       SensorType.valueOf(json.getString("type")),
       json.getString("timestamp")

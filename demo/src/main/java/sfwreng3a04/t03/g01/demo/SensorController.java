@@ -30,6 +30,7 @@ import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.UUID;
 
 public class SensorController extends VerticleBase {
 
@@ -44,7 +45,7 @@ public class SensorController extends VerticleBase {
     this.router = router;
   }
 
-  private record CreateSensorRequest(String name, int region) {}
+  private record CreateSensorRequest(String name, UUID region) {}
 
   @Override
   public Future<?> start() {
@@ -79,7 +80,7 @@ public class SensorController extends VerticleBase {
         return;
       }
 
-      int id = Integer.parseInt(idParam);
+      UUID id = UUID.fromString(idParam);
       Sensor sensor = this.sensorRepository.getSensor(id);
 
       if (sensor == null) {
@@ -94,7 +95,7 @@ public class SensorController extends VerticleBase {
 
     router.post("/api/sensors/create").handler(ctx -> {
       var sensor = ctx.body().asJsonObject().mapTo(CreateSensorRequest.class);
-      var newSensor = this.sensorRepository.addSensor(sensor.name(), sensor.region());
+      var newSensor = this.sensorRepository.addSensor(UUID.randomUUID(), sensor.name(), sensor.region());
 
       try {
         // Generate key pair for sensor, P-256 because of crypto limitations internal to vert.x
@@ -159,7 +160,7 @@ public class SensorController extends VerticleBase {
 
     router.post("/api/sensors/delete").handler(ctx -> {
       JsonObject body = ctx.body().asJsonObject();
-      Integer id = body.getInteger("id");
+      UUID id = (UUID) body.getValue("id");
 
       if (id == null) {
         ctx.response().setStatusCode(400).end("Missing id");

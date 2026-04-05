@@ -11,7 +11,7 @@
 
       perSystem = { pkgs, ... }: {
         devShells.default = pkgs.mkShell {
-          packages = [ pkgs.jdk25 ];
+          packages = [ pkgs.jdk25 pkgs.nodejs ];
         };
       };
     };

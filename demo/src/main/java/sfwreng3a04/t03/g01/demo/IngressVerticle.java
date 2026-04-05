@@ -11,10 +11,12 @@ import io.vertx.core.net.PemTrustOptions;
 import io.vertx.mqtt.MqttServer;
 import io.vertx.mqtt.MqttServerOptions;
 import io.vertx.mqtt.messages.MqttPublishMessage;
+import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
 import sfwreng3a04.t03.g01.demo.ingress.SensorData;
 import sfwreng3a04.t03.g01.demo.ingress.filters.RawDataFilter;
 import sfwreng3a04.t03.g01.demo.ingress.filters.RollingAverageFilter;
 import sfwreng3a04.t03.g01.demo.ingress.filters.TimeframeMaxFilter;
+import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 import sfwreng3a04.t03.g01.demo.repo.Sensor;
 import sfwreng3a04.t03.g01.demo.repo.SensorManagement;
 
@@ -24,14 +26,17 @@ import javax.naming.ldap.Rdn;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.UUID;
 
 public class IngressVerticle extends VerticleBase {
 
   private final SensorManagement repo;
+  private final RegionManagement regionRepo;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  public IngressVerticle(SensorManagement repo) {
+  public IngressVerticle(SensorManagement repo, RegionManagement regionRepo) {
     this.repo = repo;
+    this.regionRepo = regionRepo;
   }
 
   @Override
@@ -52,9 +57,9 @@ public class IngressVerticle extends VerticleBase {
         .addCertPath(caCertPath));
 
     // First, deploy filters for data handling
-    return vertx.deployVerticle(new RawDataFilter())
-      .compose(id -> vertx.deployVerticle(new RollingAverageFilter()))
-      .compose(id -> vertx.deployVerticle(new TimeframeMaxFilter()))
+    return vertx.deployVerticle(new RawDataFilter(regionRepo))
+      .compose(id -> vertx.deployVerticle(new RollingAverageFilter(regionRepo)))
+      .compose(id -> vertx.deployVerticle(new TimeframeMaxFilter(regionRepo)))
       .compose(id -> MqttServer.create(vertx, opts)
         .endpointHandler(endpoint -> {
           System.out.println("endpointHandler called");
@@ -68,33 +73,30 @@ public class IngressVerticle extends VerticleBase {
             throw new RuntimeException(e);
           }
 
-          boolean sensorValid = false;
-          for (var cert : certs) {
-            if (cert instanceof X509Certificate x509Cert) {
-              try {
-                String dn = x509Cert.getSubjectX500Principal().getName();
-                LdapName ldapDN = new LdapName(dn);
-                for (Rdn rdn : ldapDN.getRdns()) {
-                  if (rdn.getType().equalsIgnoreCase("CN")) {
-                    String cn = rdn.getValue().toString();
-                    int sensorId = Integer.parseInt(cn);
+          var leaf = certs[0];
+
+          if (leaf instanceof X509Certificate x509Cert) {
+            try {
+              String dn = x509Cert.getSubjectX500Principal().getName();
+              LdapName ldapDN = new LdapName(dn);
+              for (Rdn rdn : ldapDN.getRdns()) {
+                if (rdn.getType().equalsIgnoreCase("CN")) {
+                  String cn = rdn.getValue().toString();
+                  try {
+                    UUID sensorId = UUID.fromString(cn);
                     if (repo.sensorExists(sensorId)) {
-                      sensorValid = true;
-                      break;
+                      endpoint.accept(false);
+                      return;
                     }
-                  }
+                  } catch(IllegalArgumentException _) {}
                 }
-              } catch (InvalidNameException | NumberFormatException e) {
-                // Invalid DN or non-numeric CN, continue checking other certs
               }
+            } catch (InvalidNameException | NumberFormatException e) {
+              // Invalid DN or non-numeric CN, continue checking other certs
             }
           }
 
-          if (!sensorValid) {
-            endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_NOT_AUTHORIZED);
-            return;
-          }
-          endpoint.accept(false);
+          endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_NOT_AUTHORIZED);
         })
         .listen(port, host))
       .onSuccess(server -> System.out.println("MQTT server started on " + host + ":" + port));
@@ -105,7 +107,8 @@ public class IngressVerticle extends VerticleBase {
     System.out.println("handleDeviceMessage: " + topicName);
 
     // Ensure topic matches sensor/[0-9]+ pattern
-    if (!topicName.matches("sensor/[0-9]+")) {
+    if (!topicName.matches("sensor/[a-zA-Z0-9-]+")) {
+
       return;
     }
 
@@ -115,10 +118,10 @@ public class IngressVerticle extends VerticleBase {
       return;
     }
 
-    int sensorId;
+    UUID sensorId;
     try {
-      sensorId = Integer.parseInt(parts[1]);
-    } catch (NumberFormatException e) {
+      sensorId = UUID.fromString(parts[1]);
+    } catch (IllegalArgumentException e) {
       System.err.println("Invalid sensor ID in topic: " + parts[1]);
       return;
     }
@@ -141,6 +144,6 @@ public class IngressVerticle extends VerticleBase {
 
     // Publish to region ingress address
     String address = "region." + sensor.region() + ".ingress";
-    vertx.eventBus().publish(address, sensorData);
+    vertx.eventBus().publish(address, new AnonymizedSensorData(sensor.region(), sensorData.data(), sensorData.type(), sensorData.timestamp()));
   }
 }
