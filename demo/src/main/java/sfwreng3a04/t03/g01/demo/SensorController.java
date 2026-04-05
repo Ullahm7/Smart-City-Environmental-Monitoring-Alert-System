@@ -20,6 +20,7 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
+import sfwreng3a04.t03.g01.demo.repo.AuditLogManagement;
 import sfwreng3a04.t03.g01.demo.repo.Sensor;
 import sfwreng3a04.t03.g01.demo.repo.SensorManagement;
 
@@ -37,16 +38,18 @@ import java.util.UUID;
 public class SensorController extends VerticleBase {
 
   private final SensorManagement sensorRepository;
+  private final AuditLogManagement auditLogRepo;
   private final Router parentRouter;
   private final Router router;
 
   private X509Certificate caCert;
   private PrivateKey caPrivateKey;
 
-  public SensorController(Router router, SensorManagement sensorRepository) {
+  public SensorController(Router router, SensorManagement sensorRepository, AuditLogManagement auditLogRepo) {
     this.sensorRepository = sensorRepository;
     this.router = Router.router(vertx);
     this.parentRouter = router;
+    this.auditLogRepo = auditLogRepo;
   }
 
   private record CreateSensorRequest(String name, UUID region) {}
@@ -175,6 +178,8 @@ public class SensorController extends VerticleBase {
         .put("certificate", certWriter.toString())
         .put("privateKey", keyWriter.toString());
 
+      auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor created by " + UUID.randomUUID());
+
       ctx.response()
         .setStatusCode(201)
         .putHeader("content-type", "application/json")
@@ -194,6 +199,7 @@ public class SensorController extends VerticleBase {
 
     try {
       this.sensorRepository.deleteSensor(UUID.fromString(id));
+      auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor deleted by " + UUID.randomUUID());
       ctx.response().setStatusCode(204).end();
     } catch(IllegalArgumentException _) {
       ctx.response().setStatusCode(400).end("Invalid sensor ID");

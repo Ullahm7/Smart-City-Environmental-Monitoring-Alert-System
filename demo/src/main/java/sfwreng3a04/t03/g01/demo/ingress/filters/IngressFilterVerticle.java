@@ -3,7 +3,6 @@ package sfwreng3a04.t03.g01.demo.ingress.filters;
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
 import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
-import sfwreng3a04.t03.g01.demo.ingress.SensorData;
 import sfwreng3a04.t03.g01.demo.repo.Region;
 import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 

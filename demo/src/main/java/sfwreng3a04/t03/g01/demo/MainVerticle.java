@@ -1,9 +1,9 @@
 package sfwreng3a04.t03.g01.demo;
 
 import java.security.Security;
- 
+
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
- 
+
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
@@ -30,16 +30,16 @@ public class MainVerticle extends VerticleBase {
     vertx.eventBus().registerDefaultCodec(AnonymizedSensorData.class, new AnonymizedSensorDataCodec()); // add this back
 
     var router = Router.router(vertx);
-    
+
     var regionRepo = new RegionManagement(vertx.eventBus());
     var sensorRepo = new SensorManagement(vertx.eventBus());
     var auditLogRepo = new AuditLogManagement();
     var alertMgmt = new AlertManagement();
 
-    router.route("/region*").subRouter(RegionController.createRouter(vertx, regionRepo));
+    router.route("/region*").subRouter(RegionController.createRouter(vertx, regionRepo, auditLogRepo));
     router.route("/audit*").subRouter(AuditLogController.createRouter(vertx, auditLogRepo));
 
-    return vertx.deployVerticle(new SensorController(router, sensorRepo), new DeploymentOptions()
+    return vertx.deployVerticle(new SensorController(router, sensorRepo, auditLogRepo), new DeploymentOptions()
         .setConfig(new JsonObject()
           .put("caCertPath", "certs/ca.crt")
           .put("caKeyPath", "certs/ca.key")))

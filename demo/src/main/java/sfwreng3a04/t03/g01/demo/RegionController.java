@@ -1,6 +1,7 @@
 package sfwreng3a04.t03.g01.demo;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.json.Json;
@@ -8,20 +9,23 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
+import sfwreng3a04.t03.g01.demo.repo.AuditLogManagement;
 import sfwreng3a04.t03.g01.demo.repo.Region;
 import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 
 public class RegionController {
 
     private final RegionManagement regionRepo;
+    private final AuditLogManagement auditLogRepo;
 
-    private RegionController(RegionManagement regionRepo) {
+    private RegionController(RegionManagement regionRepo, AuditLogManagement auditLogRepo) {
         this.regionRepo = regionRepo;
+        this.auditLogRepo = auditLogRepo;
     }
 
-    public static Router createRouter(Vertx vertx, RegionManagement regionRepo) {
+    public static Router createRouter(Vertx vertx, RegionManagement regionRepo, AuditLogManagement auditLogRepo) {
 
-        var controller = new RegionController(regionRepo);
+        var controller = new RegionController(regionRepo, auditLogRepo);
         var router = Router.router(vertx);
 
         router.route().handler(BodyHandler.create());
@@ -43,7 +47,7 @@ public class RegionController {
 
         ctx.response()
             .putHeader("Content-Type", "application/json")
-            .end(Json.encode(regionList)); 
+            .end(Json.encode(regionList));
     }
 
     // Retrieves single region by ID
@@ -71,15 +75,17 @@ public class RegionController {
                             data.getDouble("maxLat"),
                             data.getDouble("maxLon"));
 
+        auditLogRepo.addLog(UUID.randomUUID().toString(), "Region created by " + UUID.randomUUID());
         ctx.response().setStatusCode(201).end();
     }
 
     // Deletes a single region by ID
     private void deleteById(RoutingContext ctx) {
-        
+
         String id = ctx.pathParam("id");
         regionRepo.deleteRegion(id);
 
+        auditLogRepo.addLog(UUID.randomUUID().toString(), "Region deleted by " + UUID.randomUUID());
         ctx.response().setStatusCode(201).end();
     }
 }
