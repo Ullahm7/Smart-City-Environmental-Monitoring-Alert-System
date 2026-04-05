@@ -5,18 +5,27 @@ use rand_distr::{Distribution, Normal};
 use rumqttc::{AsyncClient, MqttOptions, QoS, Transport};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialDetails {
+    sensor: Sensor,
     certificate: String,
     private_key: String,
+}
+
+#[derive(Deserialize)]
+pub struct Sensor {
+    id: Uuid,
+    name: String,
+    region: Uuid
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SensorData {
-    sensor_id: u32,
+    sensor_id: Uuid,
     data: f64,
     #[serde(rename = "type")]
     type_: SensorType,
@@ -56,18 +65,16 @@ struct Cli {
 
     #[arg(long)]
     cred_path: PathBuf,
-
-    id: u32,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    let mut opts = MqttOptions::new(&format!("sensor-{}", cli.id), "127.0.0.1", 8883);
-
     let creds: CredentialDetails =
         serde_json::from_str(&tokio::fs::read_to_string(cli.cred_path).await?)?;
+
+    let mut opts = MqttOptions::new(&format!("sensor-{}", creds.sensor.id), "127.0.0.1", 8883);
 
     let ca = tokio::fs::read_to_string(cli.ca_path).await?;
     let mut cert = creds.certificate;
@@ -99,7 +106,7 @@ async fn main() -> anyhow::Result<()> {
                 let ts = OffsetDateTime::now_utc();
 
                 let data = SensorData {
-                    sensor_id: cli.id,
+                    sensor_id: creds.sensor.id,
                     data: val,
                     type_: cli.sensor_type,
                     timestamp: ts,
@@ -109,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
 
                 println!("Publishing item {}", payload);
                 client
-                    .publish(&format!("sensor/{}", cli.id), QoS::AtLeastOnce, false, payload)
+                    .publish(&format!("sensor/{}", creds.sensor.id), QoS::AtLeastOnce, false, payload)
                     .await?;
                 println!("Done");
             }
