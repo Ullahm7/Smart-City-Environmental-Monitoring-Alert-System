@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { addLog } from "./Audit";
 
 const API_BASE = "/api/region"; // adjust if your Vite proxy path differs
 
@@ -66,17 +67,22 @@ export default function RegionManagement() {
     e.preventDefault();
     setError("");
     try {
+
+
+      const id = crypto.randomUUID()
       const res = await fetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           regionName: form.regionName,
-          regionID:   crypto.randomUUID(),
+          regionID:   id,
           minLat:     parseFloat(form.minLat),
           minLon:     parseFloat(form.minLon),
           maxLat:     parseFloat(form.maxLat),
           maxLon:     parseFloat(form.maxLon),
-        }),
+        },
+      await addLog(`Region ${form.regionName}, ID ${id} was created`)
+      ),
       });
       if (!res.ok) throw new Error(`Create failed (${res.status})`);
       setForm(EMPTY_FORM);
@@ -91,6 +97,8 @@ export default function RegionManagement() {
     setError("");
     try {
       const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
+
+      await addLog(`Region ID ${id} was deleted`)
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
       setRegions((prev) => prev.filter((r) => r.regionID !== id));
       if (searchResult && searchResult !== "not_found" && searchResult.regionID === id) {
