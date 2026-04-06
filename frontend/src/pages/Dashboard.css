@@ -1,0 +1,633 @@
+/* ===== Dashboard Page Styles ===== */
+
+.dashboard-container {
+    min-height: 100vh;
+    background: #f8f9fa;
+    padding: 24px;
+}
+
+/* ===== HEADER ===== */
+.dashboard-header {
+    background: white;
+    border-radius: 12px;
+    padding: 24px 32px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-left h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.header-subtitle {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.btn-refresh {
+    padding: 8px 16px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-refresh:hover {
+    background: #e2e8f0;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    background: #1e40af;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.user-profile span {
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+}
+
+/* ===== STATS GRID ===== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.alert-card {
+    background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
+    border: 1px solid #fee2e2;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.stat-icon.sensors {
+    background: #dbeafe;
+}
+
+.stat-icon.regions {
+    background: #e0e7ff;
+}
+
+.stat-icon.alerts {
+    background: #fee2e2;
+}
+
+.stat-icon.data {
+    background: #d1fae5;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 2px;
+}
+
+.stat-meta {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+/* ===== DASHBOARD GRID ===== */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+.dashboard-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.card-header h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #1e40af;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.btn-link:hover {
+    color: #1e3a8a;
+    text-decoration: underline;
+}
+
+.btn-secondary {
+    width: 100%;
+    padding: 10px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 16px;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+/* ===== MAP CARD ===== */
+.map-card {
+    grid-column: 1 / 2;
+    grid-row: 1 / 3;
+}
+
+.map-container {
+    width: 100%;
+    height: 500px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.map-placeholder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: #64748b;
+}
+
+.loading-text, .empty-state {
+    font-size: 14px;
+    color: #64748b;
+    text-align: center;
+    padding: 20px;
+}
+
+.error-banner {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 12px 24px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+/* Sensors Summary */
+.sensors-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.summary-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.summary-label {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.summary-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.sensor-list-preview {
+    margin-top: 8px;
+}
+
+.preview-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.sensor-preview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.sensor-name {
+    color: #0f172a;
+    font-weight: 500;
+}
+
+.sensor-id {
+    color: #94a3b8;
+    font-size: 11px;
+    font-family: monospace;
+}
+
+.preview-more {
+    padding: 8px;
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    font-style: italic;
+}
+
+.map-legend {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #475569;
+    margin-bottom: 6px;
+}
+
+.legend-item:last-child {
+    margin-bottom: 0;
+}
+
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.legend-dot.good {
+    background: #10b981;
+}
+
+.legend-dot.moderate {
+    background: #f59e0b;
+}
+
+.legend-dot.unhealthy {
+    background: #ef4444;
+}
+
+/* ===== ALERTS CARD ===== */
+.alerts-card {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+}
+
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.alert-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border-left: 4px solid;
+}
+
+.alert-item.critical {
+    border-left-color: #ef4444;
+    background: #fef2f2;
+}
+
+.alert-item.warning {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.alert-item.info {
+    border-left-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.alert-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.alert-item.critical .alert-indicator {
+    background: #ef4444;
+}
+
+.alert-item.warning .alert-indicator {
+    background: #f59e0b;
+}
+
+.alert-item.info .alert-indicator {
+    background: #3b82f6;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.alert-region {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.alert-time {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.alert-message {
+    font-size: 13px;
+    color: #475569;
+}
+
+/* ===== REGIONS CARD ===== */
+.regions-card {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+}
+
+.regions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.region-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.region-item:hover {
+    background: #f1f5f9;
+}
+
+.region-info {
+    flex: 1;
+}
+
+.region-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 2px;
+}
+
+.region-sensors {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.region-aqi {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.aqi-badge {
+    min-width: 45px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.aqi-status {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: capitalize;
+}
+
+/* ===== DATA CARD ===== */
+.data-card {
+    grid-column: 1 / 2;
+    grid-row: 3 / 4;
+}
+
+.metrics-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.metric-info {
+    flex: 1;
+}
+
+.metric-label {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.metric-trend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.metric-trend.up {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+.metric-trend.down {
+    color: #10b981;
+    background: #d1fae5;
+}
+
+.metric-trend.stable {
+    color: #64748b;
+    background: #f1f5f9;
+}
+
+.data-timestamp {
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: center;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .map-card,
+    .alerts-card,
+    .regions-card,
+    .data-card {
+        grid-column: 1 / 2;
+        grid-row: auto;
+    }
+
+    .metrics-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 16px;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .header-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .map-container {
+        height: 300px;
+    }
+}
