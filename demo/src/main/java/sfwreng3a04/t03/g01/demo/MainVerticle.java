@@ -7,8 +7,10 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.CorsHandler;
 import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
 import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorDataCodec;
 import sfwreng3a04.t03.g01.demo.ingress.SensorData;
@@ -31,13 +33,25 @@ public class MainVerticle extends VerticleBase {
 
     var router = Router.router(vertx);
 
+    router.route().handler(CorsHandler.create()
+        .addOrigin("*")
+        .allowedMethod(HttpMethod.GET)
+        .allowedMethod(HttpMethod.POST)
+        .allowedMethod(HttpMethod.OPTIONS)
+        .allowedHeader("Content-Type")
+        .allowedHeader("Authorization"));
+
     var regionRepo = new RegionManagement(vertx.eventBus());
     var sensorRepo = new SensorManagement(vertx.eventBus());
     var auditLogRepo = new AuditLogManagement();
     var alertMgmt = new AlertManagement();
+    var authMgmt = new AuthenticationManagement();
+    var sensorDataMgmt = new SensorDataManagement();
 
     router.route("/region*").subRouter(RegionController.createRouter(vertx, regionRepo, auditLogRepo));
     router.route("/audit*").subRouter(AuditLogController.createRouter(vertx, auditLogRepo));
+    router.route("/api/auth*").subRouter(AuthenticationController.createRouter(vertx, authMgmt));
+    router.route("/api/data*").subRouter(SensorDataController.createRouter(vertx, sensorDataMgmt));
 
     return vertx.deployVerticle(new SensorController(router, sensorRepo, auditLogRepo), new DeploymentOptions()
         .setConfig(new JsonObject()
