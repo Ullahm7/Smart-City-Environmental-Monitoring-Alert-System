@@ -222,7 +222,7 @@ public class SensorController extends VerticleBase {
       return;
     }
 
-    auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor data received for " + sensorId);
+    //auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor data received for " + sensorId);
 
     ctx.response()
       .setStatusCode(202)

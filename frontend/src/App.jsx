@@ -39,7 +39,7 @@ function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="landing" element={<Landing/>} />
             <Route path="login" element={<Authenticate/>} />
             <Route path="dashboard" element={<CheckAuthenticated redirect={<Dashboard/>}/>} />
@@ -47,7 +47,7 @@ function App() {
             <Route path="sensor" element={<CheckAuthenticated redirect={<Sensor/>}/>} />
             <Route path="audit" element={<CheckAuthenticated redirect={<Audit/>}/>}/>
             <Route path="alert" element={<CheckAuthenticated redirect={<Alert/>}/>} />
-            <Route path="sensor-data" element={<CheckAuthenticated redirect={<SensorData/>}/>} />
+            {/* <Route path="sensor-data" element={<CheckAuthenticated redirect={<SensorData/>}/>} /> */}
         </Routes>
       </Layout>
     </BrowserRouter>
