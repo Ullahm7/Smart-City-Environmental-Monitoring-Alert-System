@@ -584,6 +584,106 @@
     border-top: 1px solid #e2e8f0;
 }
 
+/* ===== REGIONAL SENSOR READINGS ===== */
+.regions-sensors-card {
+    grid-column: span 2;
+}
+
+.regions-sensors-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.region-sensor-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    background: #f8fafc;
+}
+
+.region-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.region-section-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.region-meta {
+    font-size: 13px;
+    color: #64748b;
+    background: white;
+    padding: 4px 12px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+}
+
+.sensor-readings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.sensor-reading-card {
+    background: white;
+    border-radius: 10px;
+    padding: 16px;
+    border-left: 4px solid #3b82f6;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s;
+}
+
+.sensor-reading-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.sensor-reading-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.sensor-icon {
+    font-size: 20px;
+}
+
+.sensor-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.sensor-reading-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.sensor-unit {
+    font-size: 14px;
+    font-weight: 500;
+    color: #94a3b8;
+    margin-left: 4px;
+}
+
+.sensor-reading-time {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1200px) {
     .stats-grid {
@@ -592,6 +692,14 @@
 
     .dashboard-grid {
         grid-template-columns: 1fr;
+    }
+
+    .regions-sensors-card {
+        grid-column: span 1;
+    }
+
+    .sensor-readings-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     }
 
     .map-card,
@@ -624,6 +732,10 @@
     }
 
     .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sensor-readings-grid {
         grid-template-columns: 1fr;
     }
 

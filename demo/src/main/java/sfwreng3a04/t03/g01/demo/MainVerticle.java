@@ -52,6 +52,7 @@ public class MainVerticle extends VerticleBase {
     router.route("/audit*").subRouter(AuditLogController.createRouter(vertx, auditLogRepo));
     router.route("/api/auth*").subRouter(AuthenticationController.createRouter(vertx, authMgmt));
     router.route("/api/data*").subRouter(SensorDataController.createRouter(vertx, sensorDataMgmt));
+    router.route("/api/dashboard*").subRouter(DashboardController.createRouter(vertx));
 
     return vertx.deployVerticle(new SensorController(router, sensorRepo, auditLogRepo), new DeploymentOptions()
         .setConfig(new JsonObject()

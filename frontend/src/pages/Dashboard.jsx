@@ -8,9 +8,15 @@ function Dashboard() {
     const navigate = useNavigate();
     
     // State for real data from APIs
-    const [sensors, setSensors] = useState([]);
+    const [overview, setOverview] = useState({
+        totalSensors: 0,
+        totalRegions: 0,
+        activeAlerts: 0,
+        totalAlertRules: 0
+    });
     const [regions, setRegions] = useState([]);
     const [alerts, setAlerts] = useState([]);
+    const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -25,58 +31,95 @@ function Dashboard() {
         setLoading(true);
         setError('');
         try {
-            // Fetch all data in parallel
-            const [sensorsRes, regionsRes, alertsRes] = await Promise.all([
-                fetch('/api/sensor'),
-                fetch('/api/region'),
-                fetch('/api/alert/history?status=ACTIVE'),
+            // Fetch dashboard data from backend
+            const [overviewRes, regionsDataRes, alertsRes, statsRes] = await Promise.all([
+                fetch('http://localhost:8888/api/dashboard/overview'),
+                fetch('http://localhost:8888/api/dashboard/regions-data'),
+                fetch('http://localhost:8888/api/alerts/history?status=ACTIVE'),
+                fetch('http://localhost:8888/api/dashboard/stats'),
             ]);
 
-            if (sensorsRes.ok) {
-                const sensorsData = await sensorsRes.json();
-                setSensors(sensorsData);
+            if (overviewRes.ok) {
+                const overviewData = await overviewRes.json();
+                setOverview(overviewData);
             }
 
-            if (regionsRes.ok) {
-                const regionsData = await regionsRes.json();
+            if (regionsDataRes.ok) {
+                const regionsData = await regionsDataRes.json();
                 setRegions(regionsData);
             }
 
             if (alertsRes.ok) {
                 const alertsData = await alertsRes.json();
-                // Sort by timestamp descending
+                // Sort by timestamp descending and take top 5
                 setAlerts([...alertsData].sort((a, b) => 
                     new Date(b.timestamp) - new Date(a.timestamp)
-                ).slice(0, 5)); // Show only top 5
+                ).slice(0, 5));
+            }
+
+            if (statsRes.ok) {
+                const statsData = await statsRes.json();
+                setStats(statsData);
             }
         } catch (e) {
             setError(e.message);
+            console.error('Error fetching dashboard data:', e);
         } finally {
             setLoading(false);
         }
     }
 
-    // Calculate stats from real data
-    const stats = {
-        totalSensors: sensors.length,
-        activeSensors: sensors.length, // Could add status field to sensors
-        regions: regions.length,
-        activeAlerts: alerts.filter(a => a.status === 'ACTIVE').length
-    };
-
-    // Calculate AQI for each region (mock for now, would need aggregated sensor data)
+    // Add real AQI calculation based on sensor data
     const regionsWithAQI = regions.map(region => {
-        // Count sensors in this region
-        const regionSensors = sensors.filter(s => s.region === region.regionID);
-        // Mock AQI calculation - in real app would aggregate from sensor data
-        const mockAQI = Math.floor(Math.random() * 150);
+        // Calculate real AQI from sensor data if available
+        let aqi = 0;
+        let status = 'good';
+        
+        if (region.sensorData && region.sensorData.length > 0) {
+            // Find AIR_QUALITY sensor data
+            const airQualityData = region.sensorData.find(d => d.type === 'AIR_QUALITY');
+            
+            if (airQualityData && airQualityData.data) {
+                // Use the actual air quality reading as AQI
+                aqi = Math.round(airQualityData.data);
+                
+                // Determine status based on AQI
+                if (aqi <= 50) status = 'good';
+                else if (aqi <= 100) status = 'moderate';
+                else if (aqi <= 150) status = 'unhealthy';
+                else status = 'hazardous';
+            } else {
+                // No air quality data, use average of all sensor readings
+                const avgReading = region.sensorData.reduce((sum, d) => sum + (d.data || 0), 0) / region.sensorData.length;
+                aqi = Math.round(avgReading);
+                status = aqi <= 50 ? 'good' : aqi <= 100 ? 'moderate' : 'unhealthy';
+            }
+        } else {
+            // No sensor data available, show as unknown
+            aqi = 0;
+            status = 'unknown';
+        }
+        
         return {
             ...region,
-            sensors: regionSensors.length,
-            aqi: mockAQI,
-            status: mockAQI <= 50 ? 'good' : mockAQI <= 100 ? 'moderate' : 'unhealthy'
+            aqi,
+            status
         };
     });
+
+    // Helper to get sensor type icon and unit
+    const getSensorTypeInfo = (type) => {
+        const typeMap = {
+            'AIR_QUALITY': { icon: '💨', label: 'Air Quality', unit: 'AQI', color: '#3b82f6' },
+            'TEMPERATURE': { icon: '🌡️', label: 'Temperature', unit: '°C', color: '#ef4444' },
+            'HUMIDITY': { icon: '💧', label: 'Humidity', unit: '%', color: '#06b6d4' },
+            'NOISE': { icon: '🔊', label: 'Noise', unit: 'dB', color: '#8b5cf6' },
+            'UV_INDEX': { icon: '☀️', label: 'UV Index', unit: '', color: '#f59e0b' },
+            'RAINFALL': { icon: '🌧️', label: 'Rainfall', unit: 'mm', color: '#0ea5e9' },
+            'WIND': { icon: '💨', label: 'Wind Speed', unit: 'km/h', color: '#10b981' },
+        };
+        return typeMap[type] || { icon: '📊', label: type, unit: '', color: '#6b7280' };
+    };
 
     const getAQIColor = (aqi) => {
         if (aqi <= 50) return '#10b981'; // green
@@ -113,47 +156,30 @@ function Dashboard() {
 
     return (
         <div className="dashboard-container">
-            {/* Header */}
-            <header className="dashboard-header">
-                <div className="header-left">
-                    <h1>Environmental Dashboard</h1>
-                    <p className="header-subtitle">Real-time monitoring • City-wide coverage</p>
-                </div>
-                <div className="header-right">
-                    <button className="btn-refresh" onClick={fetchAllData}>
-                        ↻ Refresh
-                    </button>
-                    <div className="user-profile">
-                        <div className="user-avatar">CO</div>
-                        <span>City Official</span>
-                    </div>
-                </div>
-            </header>
-
             {error && <div className="error-banner">{error}</div>}
 
             {/* Stats Overview */}
             <div className="stats-grid">
-                <div className="stat-card" onClick={() => navigate('/sensors')} style={{ cursor: 'pointer' }}>
+                <div className="stat-card" onClick={() => navigate('/sensor')} style={{ cursor: 'pointer' }}>
                     <div className="stat-icon sensors">📡</div>
                     <div className="stat-content">
-                        <div className="stat-value">{stats.totalSensors}</div>
+                        <div className="stat-value">{overview.totalSensors}</div>
                         <div className="stat-label">Total Sensors</div>
-                        <div className="stat-meta">{stats.activeSensors} active</div>
+                        <div className="stat-meta">{overview.totalSensors} active</div>
                     </div>
                 </div>
-                <div className="stat-card" onClick={() => navigate('/regions')} style={{ cursor: 'pointer' }}>
+                <div className="stat-card" onClick={() => navigate('/region')} style={{ cursor: 'pointer' }}>
                     <div className="stat-icon regions">🏙️</div>
                     <div className="stat-content">
-                        <div className="stat-value">{stats.regions}</div>
+                        <div className="stat-value">{overview.totalRegions}</div>
                         <div className="stat-label">Regions</div>
                         <div className="stat-meta">Under monitoring</div>
                     </div>
                 </div>
-                <div className="stat-card alert-card" onClick={() => navigate('/alerts')} style={{ cursor: 'pointer' }}>
+                <div className="stat-card alert-card" onClick={() => navigate('/alert')} style={{ cursor: 'pointer' }}>
                     <div className="stat-icon alerts">⚠️</div>
                     <div className="stat-content">
-                        <div className="stat-value">{stats.activeAlerts}</div>
+                        <div className="stat-value">{overview.activeAlerts}</div>
                         <div className="stat-label">Active Alerts</div>
                         <div className="stat-meta">Requires attention</div>
                     </div>
@@ -161,9 +187,9 @@ function Dashboard() {
                 <div className="stat-card" onClick={() => navigate('/audit')} style={{ cursor: 'pointer' }}>
                     <div className="stat-icon data">📊</div>
                     <div className="stat-content">
-                        <div className="stat-value">98.7%</div>
-                        <div className="stat-label">System Uptime</div>
-                        <div className="stat-meta">Last 30 days</div>
+                        <div className="stat-value">{overview.totalAlertRules}</div>
+                        <div className="stat-label">Alert Rules</div>
+                        <div className="stat-meta">Configured</div>
                     </div>
                 </div>
             </div>
@@ -174,7 +200,7 @@ function Dashboard() {
                 <div className="dashboard-card map-card">
                     <div className="card-header">
                         <h2>City Map - Regional View</h2>
-                        <button className="btn-link" onClick={() => navigate('/regions')}>
+                        <button className="btn-link" onClick={() => navigate('/region')}>
                             Manage Regions →
                         </button>
                     </div>
@@ -206,10 +232,22 @@ function Dashboard() {
                                             }}
                                         >
                                             <Popup>
-                                                <div style={{ padding: '4px' }}>
+                                                <div style={{ padding: '8px', minWidth: '200px' }}>
                                                     <strong>{region.regionName}</strong><br/>
-                                                    AQI: {region.aqi} ({region.status})<br/>
-                                                    Sensors: {region.sensors}
+                                                    <div style={{ margin: '8px 0' }}>
+                                                        <strong>AQI: {region.aqi}</strong> ({region.status})<br/>
+                                                        Sensors: {region.sensorCount || 0}
+                                                    </div>
+                                                    {region.sensorData && region.sensorData.length > 0 && (
+                                                        <div>
+                                                            <strong>Latest Readings:</strong>
+                                                            {region.sensorData.slice(0, 3).map((data, idx) => (
+                                                                <div key={idx} style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                                                                    {data.type?.replace(/_/g, ' ')}: {data.data?.toFixed(2)}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </Popup>
                                         </Rectangle>
@@ -219,7 +257,7 @@ function Dashboard() {
                         ) : (
                             <div className="map-placeholder">
                                 <p>No regions configured yet.</p>
-                                <button className="btn-secondary" onClick={() => navigate('/regions')}>
+                                <button className="btn-secondary" onClick={() => navigate('/region')}>
                                     Create Region
                                 </button>
                             </div>
@@ -244,7 +282,7 @@ function Dashboard() {
                 <div className="dashboard-card alerts-card">
                     <div className="card-header">
                         <h2>Active Alerts</h2>
-                        <button className="btn-link" onClick={() => navigate('/alerts')}>
+                        <button className="btn-link" onClick={() => navigate('/alert')}>
                             View All →
                         </button>
                     </div>
@@ -275,38 +313,54 @@ function Dashboard() {
                             );
                         })}
                     </div>
-                    <button className="btn-secondary" onClick={() => navigate('/alerts')}>
+                    <button className="btn-secondary" onClick={() => navigate('/alert')}>
                         Manage Alerts
                     </button>
                 </div>
 
-                {/* Regions List */}
-                <div className="dashboard-card regions-card">
+                {/* Regional Sensor Data - Shows all sensor types per region */}
+                <div className="dashboard-card regions-sensors-card" style={{ gridColumn: 'span 2' }}>
                     <div className="card-header">
-                        <h2>Your Regions</h2>
-                        <button className="btn-link" onClick={() => navigate('/regions')}>
+                        <h2>Regional Sensor Readings</h2>
+                        <button className="btn-link" onClick={() => navigate('/region')}>
                             Manage →
                         </button>
                     </div>
-                    <div className="regions-list">
+                    <div className="regions-sensors-container">
                         {loading && <p className="loading-text">Loading regions...</p>}
                         {!loading && regionsWithAQI.length === 0 && (
                             <p className="empty-state">No regions created yet.</p>
                         )}
-                        {regionsWithAQI.map(region => (
-                            <div key={region.regionID} className="region-item">
-                                <div className="region-info">
-                                    <div className="region-name">{region.regionName}</div>
-                                    <div className="region-sensors">{region.sensors} sensors</div>
+                        {!loading && regionsWithAQI.map(region => (
+                            <div key={region.regionID} className="region-sensor-section">
+                                <div className="region-section-header">
+                                    <h3>{region.regionName}</h3>
+                                    <span className="region-meta">{region.sensorCount || 0} sensors active</span>
                                 </div>
-                                <div className="region-aqi">
-                                    <div 
-                                        className="aqi-badge"
-                                        style={{ backgroundColor: getAQIColor(region.aqi) }}
-                                    >
-                                        {region.aqi}
-                                    </div>
-                                    <div className="aqi-status">{region.status}</div>
+                                <div className="sensor-readings-grid">
+                                    {region.sensorData && region.sensorData.length > 0 ? (
+                                        region.sensorData.map((data, idx) => {
+                                            const typeInfo = getSensorTypeInfo(data.type);
+                                            return (
+                                                <div key={idx} className="sensor-reading-card" style={{ borderLeftColor: typeInfo.color }}>
+                                                    <div className="sensor-reading-header">
+                                                        <span className="sensor-icon">{typeInfo.icon}</span>
+                                                        <span className="sensor-label">{typeInfo.label}</span>
+                                                    </div>
+                                                    <div className="sensor-reading-value">
+                                                        {data.data?.toFixed(2)} <span className="sensor-unit">{typeInfo.unit}</span>
+                                                    </div>
+                                                    <div className="sensor-reading-time">
+                                                        {formatTimestamp(data.timestamp)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                                            No sensor data available for this region
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -317,40 +371,28 @@ function Dashboard() {
                 <div className="dashboard-card data-card">
                     <div className="card-header">
                         <h2>Sensor Summary</h2>
-                        <button className="btn-link" onClick={() => navigate('/sensors')}>
+                        <button className="btn-link" onClick={() => navigate('/sensor')}>
                             Manage Sensors →
                         </button>
                     </div>
                     <div className="sensors-summary">
-                        {loading && <p className="loading-text">Loading sensors...</p>}
-                        {!loading && sensors.length === 0 && (
+                        {loading && <p className="loading-text">Loading data...</p>}
+                        {!loading && overview.totalSensors === 0 && (
                             <p className="empty-state">No sensors registered yet.</p>
                         )}
-                        {!loading && sensors.length > 0 && (
+                        {!loading && overview.totalSensors > 0 && (
                             <>
                                 <div className="summary-stat">
                                     <div className="summary-label">Total Sensors</div>
-                                    <div className="summary-value">{sensors.length}</div>
+                                    <div className="summary-value">{overview.totalSensors}</div>
                                 </div>
                                 <div className="summary-stat">
                                     <div className="summary-label">Regions Covered</div>
-                                    <div className="summary-value">
-                                        {new Set(sensors.map(s => s.region)).size}
-                                    </div>
+                                    <div className="summary-value">{overview.totalRegions}</div>
                                 </div>
-                                <div className="sensor-list-preview">
-                                    <div className="preview-label">Recent Sensors:</div>
-                                    {sensors.slice(0, 5).map(sensor => (
-                                        <div key={sensor.id} className="sensor-preview-item">
-                                            <span className="sensor-name">{sensor.name}</span>
-                                            <span className="sensor-id">{sensor.id.slice(0, 8)}...</span>
-                                        </div>
-                                    ))}
-                                    {sensors.length > 5 && (
-                                        <div className="preview-more">
-                                            +{sensors.length - 5} more
-                                        </div>
-                                    )}
+                                <div className="summary-stat">
+                                    <div className="summary-label">Active Alerts</div>
+                                    <div className="summary-value">{overview.activeAlerts}</div>
                                 </div>
                             </>
                         )}
