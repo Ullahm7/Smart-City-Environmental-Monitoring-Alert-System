@@ -28,6 +28,7 @@ dependencies {
   implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
   implementation("io.vertx:vertx-launcher-application")
   implementation("io.vertx:vertx-web")
+  implementation("io.vertx:vertx-web-client")
   implementation("io.vertx:vertx-mqtt")
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("org.bouncycastle:bcpkix-jdk18on:1.83")
