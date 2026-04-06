@@ -6,7 +6,6 @@ import Audit from "./pages/Audit.jsx";
 import Alert from "./pages/Alert.jsx";
 import Authenticate from "./pages/Authenticate.jsx";
 import Dashboard from "./pages/Dashboard.jsx"; // You'll need to create a simple file for this
-import SensorData from './pages/SensorData';
 
 import './App.css'
 
@@ -22,7 +21,6 @@ function App() {
             <Route path="sensor" element={<Sensor />} />
             <Route path="audit" element={<Audit/>}/>
             <Route path="alert" element={<Alert />} />
-            <Route path="sensor-data" element={<SensorData />} />
         </Routes>
     </BrowserRouter>
   )

@@ -1,26 +1,49 @@
 package sfwreng3a04.t03.g01.demo.ingress.filters;
 
-import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
-import sfwreng3a04.t03.g01.demo.ingress.SensorData;
-import sfwreng3a04.t03.g01.demo.ingress.SensorType;
-import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
-
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+
+import io.vertx.core.json.JsonObject;
+import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
+import sfwreng3a04.t03.g01.demo.ingress.SensorType;
+import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 
 public class RollingAverageFilter extends IngressFilterVerticle {
   private static final long WINDOW_MILLIS = 5 * 60 * 1000; // 5 minutes
 
-  public RollingAverageFilter(RegionManagement regionRepo) {
+    public RollingAverageFilter(RegionManagement regionRepo) {
     super(regionRepo);
   }
+  @Override
+public io.vertx.core.Future<?> start() {
+    // 1. Keep the original logic from IngressFilterVerticle
+    return super.start().onSuccess(v -> {
+        // 2. Add the listener for your Third-Party API
+        vertx.eventBus().consumer("region.data.request", msg -> {
+            JsonObject req = (JsonObject) msg.body();
+            String regionId = req.getString("regionId");
+            
+            // Look up the data in this filter's internal Map
+            String key = regionId + ":" + SensorType.AIR_QUALITY.name();
+            var window = windowData.get(key);
+
+            if (window == null || window.isEmpty()) {
+                msg.reply(0.0);
+            } else {
+                double avg = window.stream()
+                    .mapToDouble(DataPoint::value)
+                    .average()
+                    .orElse(0.0);
+                msg.reply(avg);
+            }
+        });
+    });
+}
 
   private record DataPoint(double value, Instant timestamp) {
   }
@@ -42,7 +65,7 @@ public class RollingAverageFilter extends IngressFilterVerticle {
     Instant cutoff = timestamp.minusMillis(WINDOW_MILLIS);
 
     // Don't emit until we have at least 5 minutes worth of data in the buffer
-    if(window.isEmpty() || window.peekFirst().timestamp().until(timestamp, ChronoUnit.SECONDS) < 5*60) {
+    if(window.isEmpty() || window.peekFirst().timestamp().until(timestamp, ChronoUnit.SECONDS) < 0.5*60) {
       return;
     }
 
@@ -66,4 +89,6 @@ public class RollingAverageFilter extends IngressFilterVerticle {
 
     vertx.eventBus().publish("region." + region + ".agg.avg", aggregated);
   }
+  
+  
 }
