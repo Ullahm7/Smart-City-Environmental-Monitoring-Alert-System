@@ -17,49 +17,67 @@ function Dashboard() {
     const [regions, setRegions] = useState([]);
     const [alerts, setAlerts] = useState([]);
     const [stats, setStats] = useState(null);
+    const [settings, setSettings] = useState({
+        cityName: 'City Dashboard',
+        logoUrl: '',
+        primaryColor: '#3b82f6',
+        secondaryColor: '#8b5cf6',
+        accentColor: '#10b981'
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [settingsDraft, setSettingsDraft] = useState(null);
+    const [settingsSaving, setSettingsSaving] = useState(false);
+    const [settingsError, setSettingsError] = useState('');
+    // userId — in a real auth setup this would come from a session/token
+    const userId = 'default';
 
     useEffect(() => {
         fetchAllData();
-        // Refresh every 30 seconds
         const interval = setInterval(fetchAllData, 30000);
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        document.documentElement.style.setProperty('--primary', settings.primaryColor);
+        document.documentElement.style.setProperty('--secondary', settings.secondaryColor);
+        document.documentElement.style.setProperty('--accent', settings.accentColor);
+    }, [settings.primaryColor, settings.secondaryColor, settings.accentColor]);
 
     async function fetchAllData() {
         setLoading(true);
         setError('');
         try {
-            // Fetch dashboard data from backend
-            const [overviewRes, regionsDataRes, alertsRes, statsRes] = await Promise.all([
-                fetch('http://localhost:8888/api/dashboard/overview'),
-                fetch('http://localhost:8888/api/dashboard/regions-data'),
-                fetch('http://localhost:8888/api/alerts/history?status=ACTIVE'),
-                fetch('http://localhost:8888/api/dashboard/stats'),
+            const [overviewRes, regionsDataRes, alertsRes, statsRes, settingsRes] = await Promise.all([
+                fetch('/api/dashboard/overview'),
+                fetch('/api/dashboard/regions-data'),
+                fetch('/api/alerts/history?status=ACTIVE'),
+                fetch('/api/dashboard/stats'),
+                fetch(`/api/dashboard/settings/${userId}`),
             ]);
 
             if (overviewRes.ok) {
                 const overviewData = await overviewRes.json();
                 setOverview(overviewData);
             }
-
             if (regionsDataRes.ok) {
                 const regionsData = await regionsDataRes.json();
                 setRegions(regionsData);
             }
-
             if (alertsRes.ok) {
                 const alertsData = await alertsRes.json();
-                // Sort by timestamp descending and take top 5
-                setAlerts([...alertsData].sort((a, b) => 
+                setAlerts([...alertsData].sort((a, b) =>
                     new Date(b.timestamp) - new Date(a.timestamp)
                 ).slice(0, 5));
             }
-
             if (statsRes.ok) {
                 const statsData = await statsRes.json();
                 setStats(statsData);
+            }
+            if (settingsRes.ok) {
+                const settingsData = await settingsRes.json();
+                setSettings(settingsData);
             }
         } catch (e) {
             setError(e.message);
@@ -67,6 +85,50 @@ function Dashboard() {
         } finally {
             setLoading(false);
         }
+    }
+
+    async function saveSettings() {
+        setSettingsSaving(true);
+        setSettingsError('');
+        try {
+            const res = await fetch(`/api/dashboard/settings/${userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settingsDraft),
+            });
+            if (!res.ok) throw new Error(`Server returned ${res.status}`);
+            const updated = await res.json();
+            setSettings(updated);
+            setSettingsOpen(false);
+        } catch (e) {
+            setSettingsError('Failed to save: ' + e.message);
+        } finally {
+            setSettingsSaving(false);
+        }
+    }
+
+    async function resetSettings() {
+        setSettingsSaving(true);
+        setSettingsError('');
+        try {
+            const res = await fetch(`/api/dashboard/settings/${userId}/reset`, {
+                method: 'POST',
+            });
+            if (!res.ok) throw new Error(`Server returned ${res.status}`);
+            const defaults = await res.json();
+            setSettings(defaults);
+            setSettingsDraft({ ...defaults });
+        } catch (e) {
+            setSettingsError('Failed to reset: ' + e.message);
+        } finally {
+            setSettingsSaving(false);
+        }
+    }
+
+    function openSettings() {
+        setSettingsDraft({ ...settings });
+        setSettingsError('');
+        setSettingsOpen(true);
     }
 
     // Add real AQI calculation based on sensor data
@@ -121,6 +183,28 @@ function Dashboard() {
         return typeMap[type] || { icon: '📊', label: type, unit: '', color: '#6b7280' };
     };
 
+    // Generate consistent color for each region based on regionID
+    const getRegionColor = (regionID) => {
+        const colors = [
+            '#3b82f6', // blue
+            '#8b5cf6', // purple
+            '#ec4899', // pink
+            '#10b981', // green
+            '#f59e0b', // orange
+            '#ef4444', // red
+            '#06b6d4', // cyan
+            '#84cc16', // lime
+        ];
+        
+        // Hash regionID to get consistent color index
+        let hash = 0;
+        for (let i = 0; i < regionID.length; i++) {
+            hash = regionID.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const index = Math.abs(hash) % colors.length;
+        return colors[index];
+    };
+
     const getAQIColor = (aqi) => {
         if (aqi <= 50) return '#10b981'; // green
         if (aqi <= 100) return '#f59e0b'; // yellow
@@ -154,8 +238,115 @@ function Dashboard() {
            (regions[0].coordinates.minLon + regions[0].coordinates.maxLon) / 2]
         : [43.2609, -79.9192]; // Hamilton, ON default
 
+    const cssVars = {
+        '--primary':   settings.primaryColor,
+        '--secondary': settings.secondaryColor,
+        '--accent':    settings.accentColor,
+    };
+
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container" style={cssVars}>
+
+            {/* City header */}
+            <div className="dashboard-header">
+                <div className="header-left">
+                    {settings.logoUrl && (
+                        <img
+                            src={settings.logoUrl}
+                            alt="City logo"
+                            className="city-logo"
+                            onError={e => { e.target.style.display = 'none'; }}
+                        />
+                    )}
+                    <div>
+                        <h1 className="city-title">{settings.cityName}</h1>
+                        <p className="header-subtitle">Environmental Monitoring Dashboard</p>
+                    </div>
+                </div>
+                <button className="btn-settings" onClick={openSettings}>
+                    ⚙ Customize
+                </button>
+            </div>
+
+            {/* Settings modal */}
+            {settingsOpen && settingsDraft && (
+                <div className="settings-overlay" onClick={() => setSettingsOpen(false)}>
+                    <div className="settings-modal" onClick={e => e.stopPropagation()}>
+                        <div className="settings-modal-header">
+                            <h2>Dashboard Settings</h2>
+                            <button className="settings-close" onClick={() => setSettingsOpen(false)}>✕</button>
+                        </div>
+                        <div className="settings-body">
+                            <label className="settings-label">
+                                City / Organisation Name
+                                <input
+                                    className="settings-input"
+                                    value={settingsDraft.cityName}
+                                    onChange={e => setSettingsDraft({ ...settingsDraft, cityName: e.target.value })}
+                                    placeholder="e.g. Hamilton Smart City"
+                                />
+                            </label>
+                            <label className="settings-label">
+                                Logo URL
+                                <input
+                                    className="settings-input"
+                                    value={settingsDraft.logoUrl}
+                                    onChange={e => setSettingsDraft({ ...settingsDraft, logoUrl: e.target.value })}
+                                    placeholder="https://example.com/logo.png"
+                                />
+                            </label>
+                            {settingsDraft.logoUrl && (
+                                <div className="logo-preview">
+                                    <img src={settingsDraft.logoUrl} alt="Logo preview"
+                                        onError={e => { e.target.style.display = 'none'; }} />
+                                </div>
+                            )}
+                            <div className="settings-colors">
+                                {[
+                                    { key: 'primaryColor',   label: 'Primary Color' },
+                                    { key: 'secondaryColor', label: 'Secondary Color' },
+                                    { key: 'accentColor',    label: 'Accent Color' },
+                                ].map(({ key, label }) => (
+                                    <label key={key} className="settings-label">
+                                        {label}
+                                        <div className="color-row">
+                                            <input type="color" className="settings-color-picker"
+                                                value={settingsDraft[key]}
+                                                onChange={e => setSettingsDraft({ ...settingsDraft, [key]: e.target.value })}
+                                            />
+                                            <input className="settings-input color-hex"
+                                                value={settingsDraft[key]} maxLength={7}
+                                                onChange={e => setSettingsDraft({ ...settingsDraft, [key]: e.target.value })}
+                                            />
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                            <div className="color-preview-bar">
+                                <span style={{ background: settingsDraft.primaryColor }}   title="Primary" />
+                                <span style={{ background: settingsDraft.secondaryColor }} title="Secondary" />
+                                <span style={{ background: settingsDraft.accentColor }}    title="Accent" />
+                            </div>
+                        </div>
+                        {settingsError && <p className="settings-err">{settingsError}</p>}
+                        <div className="settings-footer">
+                            <button className="btn-reset" onClick={resetSettings} disabled={settingsSaving}>
+                                Reset to defaults
+                            </button>
+                            <div className="settings-footer-right">
+                                <button className="btn-cancel" onClick={() => setSettingsOpen(false)} disabled={settingsSaving}>
+                                    Cancel
+                                </button>
+                                <button className="btn-save" onClick={saveSettings} disabled={settingsSaving}
+                                    style={{ background: settingsDraft.primaryColor }}>
+                                    {settingsSaving ? 'Saving…' : 'Save'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {error && <div className="error-banner">{error}</div>}
 
             {/* Stats Overview */}
@@ -221,12 +412,15 @@ function Dashboard() {
                                         [region.coordinates.minLat, region.coordinates.minLon],
                                         [region.coordinates.maxLat, region.coordinates.maxLon]
                                     ];
+                                    // FIX: explicitly set fillColor to match region color
+                                    const regionColor = getRegionColor(region.regionID);
                                     return (
                                         <Rectangle
                                             key={region.regionID}
                                             bounds={bounds}
                                             pathOptions={{
-                                                color: getAQIColor(region.aqi),
+                                                color: regionColor,
+                                                fillColor: regionColor,
                                                 weight: 2,
                                                 fillOpacity: 0.3
                                             }}
@@ -264,15 +458,15 @@ function Dashboard() {
                         )}
                         {regions.length > 0 && (
                             <div className="map-legend">
-                                <div className="legend-item">
-                                    <span className="legend-dot good"></span> Good (0-50)
-                                </div>
-                                <div className="legend-item">
-                                    <span className="legend-dot moderate"></span> Moderate (51-100)
-                                </div>
-                                <div className="legend-item">
-                                    <span className="legend-dot unhealthy"></span> Unhealthy (101-150)
-                                </div>
+                                {regionsWithAQI.map(region => (
+                                    <div key={region.regionID} className="legend-item">
+                                        <span
+                                            className="legend-dot"
+                                            style={{ background: getRegionColor(region.regionID) }}
+                                        ></span>
+                                        {region.regionName}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
@@ -294,12 +488,24 @@ function Dashboard() {
                         {alerts.map(alert => {
                             const region = regions.find(r => r.regionID === alert.region);
                             const alertType = getAlertType(alert);
+                            const regionColor = getRegionColor(alert.region);
                             return (
-                                <div key={alert.id} className={`alert-item ${alertType}`}>
-                                    <div className="alert-indicator"></div>
+                                <div 
+                                    key={alert.id} 
+                                    className={`alert-item ${alertType}`}
+                                    style={{ borderLeftColor: regionColor }}
+                                >
+                                    {/* FIX: inline style overrides the CSS class color so dot matches region */}
+                                    <div
+                                        className="alert-indicator"
+                                        style={{ background: regionColor }}
+                                    ></div>
                                     <div className="alert-content">
                                         <div className="alert-header">
-                                            <span className="alert-region">
+                                            <span
+                                                className="alert-region"
+                                                style={{ color: regionColor }}
+                                            >
                                                 {region ? region.regionName : alert.region.slice(0, 8)}
                                             </span>
                                             <span className="alert-time">{formatTimestamp(alert.timestamp)}</span>
@@ -406,5 +612,4 @@ function Dashboard() {
     );
 }
 
-//trying this to run some fixes
 export default Dashboard;

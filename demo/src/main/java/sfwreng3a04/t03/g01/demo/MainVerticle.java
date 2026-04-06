@@ -16,6 +16,7 @@ import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorDataCodec;
 import sfwreng3a04.t03.g01.demo.ingress.SensorData;
 import sfwreng3a04.t03.g01.demo.ingress.SensorDataCodec;
 import sfwreng3a04.t03.g01.demo.repo.AuditLogManagement;
+import sfwreng3a04.t03.g01.demo.repo.DashboardManagement;
 import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 import sfwreng3a04.t03.g01.demo.repo.SensorManagement;
 
@@ -36,6 +37,7 @@ public class MainVerticle extends VerticleBase {
     router.route().handler(CorsHandler.create()
         .addOrigin("*")
         .allowedMethod(HttpMethod.GET)
+        .allowedMethod(HttpMethod.PUT)
         .allowedMethod(HttpMethod.POST)
         .allowedMethod(HttpMethod.OPTIONS)
         .allowedHeader("Content-Type")
@@ -47,12 +49,13 @@ public class MainVerticle extends VerticleBase {
     var alertMgmt = new AlertManagement();
     var authMgmt = new AuthenticationManagement();
     var sensorDataMgmt = new SensorDataManagement();
+    var dashboardMgmt = new DashboardManagement(vertx.eventBus());
 
     router.route("/region*").subRouter(RegionController.createRouter(vertx, regionRepo, auditLogRepo));
     router.route("/audit*").subRouter(AuditLogController.createRouter(vertx, auditLogRepo));
     router.route("/api/auth*").subRouter(AuthenticationController.createRouter(vertx, authMgmt));
     //router.route("/api/data*").subRouter(SensorDataController.createRouter(vertx, sensorDataMgmt));
-    router.route("/api/dashboard*").subRouter(DashboardController.createRouter(vertx));
+    router.route("/api/dashboard*").subRouter(DashboardController.createRouter(vertx, dashboardMgmt));
 
     return vertx.deployVerticle(new SensorController(router, sensorRepo, auditLogRepo), new DeploymentOptions()
         .setConfig(new JsonObject()

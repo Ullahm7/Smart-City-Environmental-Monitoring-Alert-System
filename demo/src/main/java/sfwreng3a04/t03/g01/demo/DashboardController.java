@@ -6,21 +6,25 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.handler.BodyHandler;
+import sfwreng3a04.t03.g01.demo.repo.DashboardManagement;
+import sfwreng3a04.t03.g01.demo.repo.DashboardSettings;
 
 public class DashboardController {
 
     private final Vertx vertx;
     private final WebClient client;
+    private final DashboardManagement dashboardManagement;
     private static final String BASE_URL = "localhost";
     private static final int PORT = 8888;
 
-    private DashboardController(Vertx vertx) {
+    private DashboardController(Vertx vertx, DashboardManagement dashboardManagement) {
         this.vertx = vertx;
         this.client = WebClient.create(vertx);
+        this.dashboardManagement = dashboardManagement;
     }
 
-    public static Router createRouter(Vertx vertx) {
-        var controller = new DashboardController(vertx);
+    public static Router createRouter(Vertx vertx, DashboardManagement dashboardManagement) {
+        var controller = new DashboardController(vertx, dashboardManagement);
         var router = Router.router(vertx);
 
         router.route().handler(BodyHandler.create());
@@ -36,6 +40,12 @@ public class DashboardController {
 
         // Get system statistics
         router.get("/stats").handler(controller::getSystemStats);
+
+        // Dashboard settings endpoints
+        router.get("/settings").handler(controller::getSettings);
+        router.get("/settings/:userId").handler(controller::getUserSettings);
+        router.put("/settings/:userId").handler(controller::updateSettings);
+        router.post("/settings/:userId/reset").handler(controller::resetSettings);
 
         return router;
     }
@@ -359,5 +369,81 @@ public class DashboardController {
                         .put("error", "Failed to fetch system stats: " + err.getMessage())
                         .encode());
             });
+    }
+
+    /**
+     * GET /api/dashboard/settings
+     * Get dashboard settings for default user
+     */
+    private void getSettings(io.vertx.ext.web.RoutingContext ctx) {
+        DashboardSettings settings = dashboardManagement.getSettings("default");
+        ctx.response()
+            .putHeader("content-type", "application/json")
+            .end(settings.toJson().encode());
+    }
+
+    /**
+     * GET /api/dashboard/settings/:userId
+     * Get dashboard settings for specific user
+     */
+    private void getUserSettings(io.vertx.ext.web.RoutingContext ctx) {
+        String userId = ctx.pathParam("userId");
+        DashboardSettings settings = dashboardManagement.getSettings(userId);
+        ctx.response()
+            .putHeader("content-type", "application/json")
+            .end(settings.toJson().encode());
+    }
+
+    /**
+     * PUT /api/dashboard/settings/:userId
+     * Update dashboard settings for specific user
+     * Body: { cityName?, logoUrl?, primaryColor?, secondaryColor?, accentColor? }
+     */
+    private void updateSettings(io.vertx.ext.web.RoutingContext ctx) {
+        String userId = ctx.pathParam("userId");
+        JsonObject body = ctx.body().asJsonObject();
+
+        if (body == null) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("content-type", "application/json")
+                .end(new JsonObject().put("error", "Request body is required").encode());
+            return;
+        }
+
+        try {
+            DashboardSettings settings = dashboardManagement.updateSettings(userId, body);
+            ctx.response()
+                .putHeader("content-type", "application/json")
+                .end(settings.toJson().encode());
+        } catch (Exception e) {
+            ctx.response()
+                .setStatusCode(500)
+                .putHeader("content-type", "application/json")
+                .end(new JsonObject()
+                    .put("error", "Failed to update settings: " + e.getMessage())
+                    .encode());
+        }
+    }
+
+    /**
+     * POST /api/dashboard/settings/:userId/reset
+     * Reset dashboard settings to defaults for specific user
+     */
+    private void resetSettings(io.vertx.ext.web.RoutingContext ctx) {
+        String userId = ctx.pathParam("userId");
+        try {
+            DashboardSettings settings = dashboardManagement.resetSettings(userId);
+            ctx.response()
+                .putHeader("content-type", "application/json")
+                .end(settings.toJson().encode());
+        } catch (Exception e) {
+            ctx.response()
+                .setStatusCode(500)
+                .putHeader("content-type", "application/json")
+                .end(new JsonObject()
+                    .put("error", "Failed to reset settings: " + e.getMessage())
+                    .encode());
+        }
     }
 }

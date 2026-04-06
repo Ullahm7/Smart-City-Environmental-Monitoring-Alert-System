@@ -6,6 +6,12 @@
   box-sizing: border-box;
 }
 
+:root {
+  --primary: #3b82f6;
+  --secondary: #8b5cf6;
+  --accent: #10b981;
+}
+
 html, body {
   height: 100%;
 }

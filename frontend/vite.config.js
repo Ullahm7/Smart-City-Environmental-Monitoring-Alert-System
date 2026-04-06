@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // These three rewrite /api/sensors → /sensors etc.
+      // These routes rewrite /api/sensors → /sensors etc.
       // because the backend mounts them without /api prefix
       '/api/sensors': {
         target: 'http://localhost:8888',

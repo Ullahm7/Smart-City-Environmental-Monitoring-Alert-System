@@ -1,5 +1,5 @@
 .navbar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--primary, #3b82f6) 0%, var(--secondary, #8b5cf6) 100%);
     color: white;
     padding: 0 2rem;
     display: flex;
@@ -109,7 +109,7 @@
     height: 36px;
     border-radius: 50%;
     background: white;
-    color: #667eea;
+    color: var(--primary, #3b82f6);
     display: flex;
     align-items: center;
     justify-content: center;
