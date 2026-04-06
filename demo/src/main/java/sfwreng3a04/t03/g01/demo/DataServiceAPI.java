@@ -16,6 +16,7 @@ import java.time.temporal.TemporalAmount;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Caches the most recent sensor readings from the event bus and exposes them
@@ -48,9 +49,13 @@ import java.util.Map;
  */
 public class DataServiceAPI extends VerticleBase {
 
+  private static final int RATE_LIMIT_THRESHOLD = 100;
+  private static final long RATE_LIMIT_RESET_INTERVAL_MS = 60_000; // 1 minute
+
   private final Router router;
   private final RegionManagement regionRepo;
   private final SensorDataManagement dataRepo;
+  private final AtomicInteger requestCounter = new AtomicInteger(0);
 
   public DataServiceAPI(Router router, RegionManagement regionRepo, SensorDataManagement dataRepo) {
     this.router = router;
@@ -60,6 +65,9 @@ public class DataServiceAPI extends VerticleBase {
 
   @Override
   public Future<?> start() {
+    // ── Rate limit timer ──────────────────────────────────────────────────────
+    vertx.setPeriodic(RATE_LIMIT_RESET_INTERVAL_MS, id -> requestCounter.set(0));
+
     // ── HTTP routes ───────────────────────────────────────────────────────────
 
     /*
@@ -75,6 +83,12 @@ public class DataServiceAPI extends VerticleBase {
      * If no filters are supplied, returns everything currently cached.
      */
     router.get("/api/data/current").handler(ctx -> {
+      if (requestCounter.incrementAndGet() > RATE_LIMIT_THRESHOLD) {
+        ctx.response().setStatusCode(429)
+          .end("Rate limit exceeded. Please try again later.");
+        return;
+      }
+
       String regionParam = ctx.queryParams().get("region");
       String typeParam = ctx.queryParams().get("type");
       String startParam = ctx.queryParams().get("start");
@@ -136,6 +150,12 @@ public class DataServiceAPI extends VerticleBase {
      * was returned.
      */
     router.get("/api/data/aggregated").handler(ctx -> {
+      if (requestCounter.incrementAndGet() > RATE_LIMIT_THRESHOLD) {
+        ctx.response().setStatusCode(429)
+          .end("Rate limit exceeded. Please try again later.");
+        return;
+      }
+
       String regionParam = ctx.queryParams().get("region");
       String typeParam = ctx.queryParams().get("type");
       String metricParam = ctx.queryParams().get("metric");
