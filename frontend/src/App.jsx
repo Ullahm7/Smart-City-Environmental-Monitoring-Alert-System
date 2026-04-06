@@ -8,18 +8,32 @@ import Authenticate from "./pages/Authenticate.jsx";
 import Dashboard from "./pages/Dashboard.jsx"; // You'll need to create a simple file for this
 import './App.css'
 
+
+
 function App() {
+
+  const CheckAuthenticated = ({redirect}) => {
+    if (localStorage.getItem("userId")) {
+      return redirect;
+    }
+    else {
+      return <Navigate to="../landing"/>;
+    }
+
+  }
+
   return (
     <BrowserRouter>
         <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="landing" element={<Landing/>} />
             <Route path="login" element={<Authenticate/>} />
-            <Route path="dashboard" element={<Dashboard/>} />
-            <Route path="region" element={<Region/>} />
-            <Route path="sensor" element={<Sensor />} />
-            <Route path="audit" element={<Audit/>}/>
-            <Route path="alert" element={<Alert />} />
+            <Route path="dashboard" element={<CheckAuthenticated redirect={<Dashboard/>}/>} />
+            <Route path="region" element={<CheckAuthenticated redirect={<Region/>}/>} />
+            <Route path="sensor" element={<CheckAuthenticated redirect={<Sensor/>}/>} />
+            <Route path="audit" element={<CheckAuthenticated redirect={<Audit/>}/>}/>
+            <Route path="alert" element={<CheckAuthenticated redirect={<Alert/>}/>} />
+            <Route path="sensor-data" element={<CheckAuthenticated redirect={<SensorData/>}/>} />
         </Routes>
     </BrowserRouter>
   )
