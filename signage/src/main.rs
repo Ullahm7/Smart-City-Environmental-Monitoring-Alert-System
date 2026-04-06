@@ -36,5 +36,6 @@ async fn main() -> anyhow::Result<()> {
             println!("Current temperature: {}°C", d.data);
         }
 
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }
