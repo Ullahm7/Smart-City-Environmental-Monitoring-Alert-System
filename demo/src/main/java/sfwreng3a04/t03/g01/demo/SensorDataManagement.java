@@ -59,6 +59,10 @@ public class SensorDataManagement {
   public List<AnonymizedSensorData> getData(String region, DataType type, Instant start, Instant end) {
     var data = latestDataCache.get(new DataKey(region, type));
 
+    if(data == null) {
+      return new ArrayList<>();
+    }
+
     return data.stream().filter(pt -> {
         if (start != null) {
           return DateTimeFormatter.ISO_DATE_TIME.parse(pt.timestamp(), Instant::from).isAfter(start);
