@@ -10,6 +10,7 @@ export async function addLog(description) {
     body: JSON.stringify({
       logID:       crypto.randomUUID(),
       description,
+      userID: localStorage.getItem('userId'),
     }),
   });
 }
@@ -32,6 +33,8 @@ export default function AuditLogManagement() {
         if (!res.ok) throw new Error(`Failed to fetch logs (${res.status})`);
         const data = await res.json();
         setLogs([...data].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+
+        console.log(logs);
     } catch (e) {
         setError(e.message);
     } finally {
@@ -112,7 +115,7 @@ export default function AuditLogManagement() {
             <table style={s.table}>
               <thead>
                 <tr>
-                  {["Log ID", "Timestamp", "Description"].map((h) => (
+                  {["Log ID", "User ID", "Timestamp", "Description"].map((h) => (
                     <th key={h} style={s.th}>{h}</th>
                   ))}
                 </tr>
@@ -137,6 +140,7 @@ function LogRow({ log, formatTimestamp, highlight }) {
       <div style={s.highlightRow}>
         {[
           { label: "Log ID",      value: log.logID },
+          { label: "User ID",     value: log.userID},
           { label: "Timestamp",   value: formatTimestamp(log.timestamp) },
           { label: "Description", value: log.description },
         ].map(({ label, value }) => (
@@ -152,6 +156,7 @@ function LogRow({ log, formatTimestamp, highlight }) {
   return (
     <tr style={s.tr}>
       <td style={s.td}>{log.logID}</td>
+      <td style={s.td}>{log.userID}</td>
       <td style={s.td}>{formatTimestamp(log.timestamp)}</td>
       <td style={{ ...s.td, ...s.descCell }}>{log.description}</td>
     </tr>

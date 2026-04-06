@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { addLog } from "./Audit";
 
 const API_BASE = "/api/sensors";
 
@@ -70,6 +71,7 @@ export default function SensorManagement() {
         }),
       });
       if (!res.ok) throw new Error(`Create failed (${res.status})`);
+      await addLog(`Sensor ${form.name} was created`)
       const data = await res.json();
       // Store credentials for this sensor (only available from create response)
       if (data.sensor?.id && data.certificate && data.privateKey) {
@@ -94,6 +96,7 @@ export default function SensorManagement() {
     try {
       const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      await addLog(`Sensor ID ${id} was deleted`)
       setSensors((prev) => prev.filter((s) => s.id !== id));
       // Clear credentials if they exist for this sensor
       setCredentials((prev) => {

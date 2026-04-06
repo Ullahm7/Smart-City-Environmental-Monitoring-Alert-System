@@ -1,12 +1,18 @@
 package sfwreng3a04.t03.g01.demo;
 
-import io.vertx.core.Future;
-import io.vertx.core.VerticleBase;
-import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
+import java.io.FileReader;
+import java.io.StringWriter;
+import java.math.BigInteger;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
+import java.security.spec.ECGenParameterSpec;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.UUID;
+
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.X509CertificateHolder;
@@ -20,20 +26,17 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
+
+import io.vertx.core.Future;
+import io.vertx.core.VerticleBase;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import sfwreng3a04.t03.g01.demo.repo.AuditLogManagement;
 import sfwreng3a04.t03.g01.demo.repo.Sensor;
 import sfwreng3a04.t03.g01.demo.repo.SensorManagement;
-
-import java.io.FileReader;
-import java.io.StringWriter;
-import java.math.BigInteger;
-import java.security.*;
-import java.security.cert.X509Certificate;
-import java.security.spec.ECGenParameterSpec;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.UUID;
 
 public class SensorController extends VerticleBase {
 
@@ -178,7 +181,7 @@ public class SensorController extends VerticleBase {
         .put("certificate", certWriter.toString())
         .put("privateKey", keyWriter.toString());
 
-      auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor created by " + UUID.randomUUID());
+      // auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor created by " + UUID.randomUUID());
 
       ctx.response()
         .setStatusCode(201)
@@ -199,7 +202,7 @@ public class SensorController extends VerticleBase {
 
     try {
       this.sensorRepository.deleteSensor(UUID.fromString(id));
-      auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor deleted by " + UUID.randomUUID());
+      // auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor deleted by " + UUID.randomUUID());
       ctx.response().setStatusCode(204).end();
     } catch(IllegalArgumentException _) {
       ctx.response().setStatusCode(400).end("Invalid sensor ID");
