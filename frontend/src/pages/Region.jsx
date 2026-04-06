@@ -80,11 +80,11 @@ export default function RegionManagement() {
           minLon:     parseFloat(form.minLon),
           maxLat:     parseFloat(form.maxLat),
           maxLon:     parseFloat(form.maxLon),
-        },
-      //await addLog(`Region ${form.regionName}, ID ${id} was created`)
+        }
       ),
       });
       if (!res.ok) throw new Error(`Create failed (${res.status})`);
+      await addLog(`Region ${form.regionName}, ID ${id} was created`)
       setForm(EMPTY_FORM);
       fetchAll();
     } catch (e) {
@@ -97,9 +97,8 @@ export default function RegionManagement() {
     setError("");
     try {
       const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
-
-      //await addLog(`Region ID ${id} was deleted`)
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      await addLog(`Region ID ${id} was deleted`)
       setRegions((prev) => prev.filter((r) => r.regionID !== id));
       if (searchResult && searchResult !== "not_found" && searchResult.regionID === id) {
         clearSearch();

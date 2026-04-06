@@ -10,8 +10,8 @@ public class AuditLogManagement {
         return auditDatabase.get(logID);
     }
 
-    public void addLog(String logID, String description) {
-        auditDatabase.put(logID, new Log(logID, description));
+    public void addLog(String logID, String description, String userID) {
+        auditDatabase.put(logID, new Log(logID, description, userID));
     }
 
     public ArrayList<Log> retrieveLogList() {

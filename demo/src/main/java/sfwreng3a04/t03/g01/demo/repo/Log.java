@@ -6,11 +6,13 @@ public class Log {
     private Instant timestamp;
     private String description;
     private String logID;
+    private String userID;
 
-    public Log(String logID, String description) {
+    public Log(String logID, String description, String userID) {
         this.timestamp = Instant.now();
         this.description = description;
         this.logID = logID;
+        this.userID = userID;
     }
 
     public Instant getTimestamp() {
@@ -23,5 +25,9 @@ public class Log {
 
     public String getLogID(){
         return logID;
+    }
+
+    public String getUserID() {
+        return userID;
     }
 }

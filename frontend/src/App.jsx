@@ -6,7 +6,7 @@ import Audit from "./pages/Audit.jsx";
 import Alert from "./pages/Alert.jsx";
 import Authenticate from "./pages/Authenticate.jsx";
 import Dashboard from "./pages/Dashboard.jsx"; // You'll need to create a simple file for this
-import SensorData from './pages/SensorData';
+import SensorData from './pages/SensorData.jsx';
 
 import './App.css'
 

@@ -1,7 +1,6 @@
 package sfwreng3a04.t03.g01.demo;
 
 import java.util.ArrayList;
-import java.util.UUID;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.json.Json;
@@ -75,7 +74,7 @@ public class RegionController {
                             data.getDouble("maxLat"),
                             data.getDouble("maxLon"));
 
-        auditLogRepo.addLog(UUID.randomUUID().toString(), "Region created by " + UUID.randomUUID());
+        // auditLogRepo.addLog(UUID.randomUUID().toString(), "Region created by " + UUID.randomUUID());
         ctx.response().setStatusCode(201).end();
     }
 
@@ -85,7 +84,7 @@ public class RegionController {
         String id = ctx.pathParam("id");
         regionRepo.deleteRegion(id);
 
-        auditLogRepo.addLog(UUID.randomUUID().toString(), "Region deleted by " + UUID.randomUUID());
+        // auditLogRepo.addLog(UUID.randomUUID().toString(), "Region deleted by " + UUID.randomUUID());
         ctx.response().setStatusCode(201).end();
     }
 }
