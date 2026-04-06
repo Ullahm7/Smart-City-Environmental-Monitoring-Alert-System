@@ -61,6 +61,7 @@ public class MainVerticle extends VerticleBase {
       .compose(id -> vertx.deployVerticle(new AlertController(router, alertMgmt)))
       .compose(id -> vertx.deployVerticle(new AlertServiceAPI(router, alertMgmt, regionRepo)))
       .compose(id -> vertx.deployVerticle(new DataServiceAPI(router, regionRepo)))
+      .compose(id -> vertx.deployVerticle(new SensorDataController(sensorDataMgmt, regionRepo, vertx.eventBus())))
       .compose(id -> vertx.deployVerticle(new IngressVerticle(sensorRepo, regionRepo), new DeploymentOptions()
         .setConfig(new JsonObject()
           .put("host", "0.0.0.0")

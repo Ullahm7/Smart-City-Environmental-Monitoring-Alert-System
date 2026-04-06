@@ -8,6 +8,7 @@ import io.vertx.core.VerticleBase;
 import io.vertx.core.http.ClientAuth;
 import io.vertx.core.net.PemKeyCertOptions;
 import io.vertx.core.net.PemTrustOptions;
+import io.vertx.mqtt.MqttEndpoint;
 import io.vertx.mqtt.MqttServer;
 import io.vertx.mqtt.MqttServerOptions;
 import io.vertx.mqtt.messages.MqttPublishMessage;
@@ -64,7 +65,7 @@ public class IngressVerticle extends VerticleBase {
         .endpointHandler(endpoint -> {
           System.out.println("endpointHandler called");
           endpoint.publishAutoAck(true);
-          endpoint.publishHandler(this::handleDeviceMessage);
+          endpoint.publishHandler(msg -> handleDeviceMessage(endpoint, msg));
           Certificate[] certs;
           try {
             certs = endpoint.sslSession().getPeerCertificates();
@@ -102,9 +103,10 @@ public class IngressVerticle extends VerticleBase {
       .onSuccess(server -> System.out.println("MQTT server started on " + host + ":" + port));
   }
 
-  private void handleDeviceMessage(MqttPublishMessage message) {
+  private void handleDeviceMessage(MqttEndpoint ep, MqttPublishMessage message) {
     var topicName = message.topicName();
     System.out.println("handleDeviceMessage: " + topicName);
+
 
     // Ensure topic matches sensor/[0-9]+ pattern
     if (!topicName.matches("sensor/[a-zA-Z0-9-]+")) {
@@ -130,6 +132,7 @@ public class IngressVerticle extends VerticleBase {
     Sensor sensor = repo.getSensor(sensorId);
     if (sensor == null) {
       System.err.println("Unknown sensor ID: " + sensorId);
+      ep.close();
       return;
     }
 

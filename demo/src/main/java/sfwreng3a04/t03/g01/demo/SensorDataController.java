@@ -1,38 +1,49 @@
 package sfwreng3a04.t03.g01.demo;
 
+import io.vertx.core.Future;
+import io.vertx.core.VerticleBase;
 import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import sfwreng3a04.t03.g01.demo.ingress.AnonymizedSensorData;
+import sfwreng3a04.t03.g01.demo.repo.RegionManagement;
 
-public class SensorDataController {
+public class SensorDataController extends VerticleBase {
 
-    // Now it takes SensorDataManagement as the second argument
-    public static Router createRouter(Vertx vertx, SensorDataManagement dataMgmt) {
-        Router router = Router.router(vertx);
+  private final EventBus eventBus;
+  private final SensorDataManagement dataMgmt;
+  private final RegionManagement regionMgmt;
 
-        // 1. Consume from the Event Bus and tell the Management layer to save it
-        vertx.eventBus().<AnonymizedSensorData>consumer("region.downtown.agg.avg", message -> {
-            dataMgmt.saveLatestData("downtown", message.body());
-        });
+  public SensorDataController(SensorDataManagement dataMgmt, RegionManagement regionMgmt, EventBus eventBus) {
 
-        // 2. Fetch the data from the Management layer to send to React
-        router.get("/latest/:region").handler(ctx -> {
-            String region = ctx.pathParam("region");
-            AnonymizedSensorData data = dataMgmt.getLatestData(region);
+    this.eventBus = eventBus;
+    this.dataMgmt = dataMgmt;
+    this.regionMgmt = regionMgmt;
+  }
 
-            if (data != null) {
-                ctx.response()
-                    .putHeader("content-type", "application/json")
-                    .end(JsonObject.mapFrom(data).encode());
-            } else {
-                ctx.response()
-                    .setStatusCode(404)
-                    .putHeader("content-type", "application/json")
-                    .end(new JsonObject().put("message", "No aggregated data available yet").encode());
-            }
-        });
-
-        return router;
+  @Override
+  public Future<?> start() {
+    for (var region : regionMgmt.retrieveRegionList()) {
+      subscribeToNewRegion(region.getRegionID());
     }
+
+    eventBus.consumer("mgmt.region.created", msg -> subscribeToNewRegion((String) msg.body()));
+
+    return Future.succeededFuture();
+  }
+
+  private void subscribeToNewRegion(String region) {
+    eventBus.consumer("region." + region + ".ingress", message -> {
+      dataMgmt.saveRawData(region, (AnonymizedSensorData) message.body());
+    });
+
+    eventBus.consumer("region." + region + ".agg.avg", message -> {
+      dataMgmt.saveAvgData(region, (AnonymizedSensorData) message.body());
+    });
+
+    eventBus.consumer("region." + region + ".agg.max", message -> {
+      dataMgmt.saveMaxData(region, (AnonymizedSensorData) message.body());
+    });
+  }
 }
