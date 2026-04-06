@@ -184,7 +184,7 @@ public class SensorController extends VerticleBase {
         .put("certificate", certWriter.toString())
         .put("privateKey", keyWriter.toString());
 
-      auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor created by " + UUID.randomUUID());
+      // auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor created by " + UUID.randomUUID());
 
       ctx.response()
         .setStatusCode(201)
@@ -240,7 +240,7 @@ public class SensorController extends VerticleBase {
 
     try {
       this.sensorRepository.deleteSensor(UUID.fromString(id));
-      auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor deleted by " + UUID.randomUUID());
+      // auditLogRepo.addLog(UUID.randomUUID().toString(), "Sensor deleted by " + UUID.randomUUID());
       ctx.response().setStatusCode(204).end();
     } catch(IllegalArgumentException e) {
       ctx.response().setStatusCode(400).end("Invalid sensor ID");

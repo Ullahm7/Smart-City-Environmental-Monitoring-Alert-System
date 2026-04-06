@@ -7,8 +7,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
-import sfwreng3a04.t03.g01.demo.repo.Log;
 import sfwreng3a04.t03.g01.demo.repo.AuditLogManagement;
+import sfwreng3a04.t03.g01.demo.repo.Log;
 
 public class AuditLogController {
 
@@ -37,7 +37,7 @@ public class AuditLogController {
 
         ArrayList<Log> logList = auditLogRepo.retrieveLogList();
 
-        System.out.println(Json.encode(logList));
+        System.out.println("bob " + Json.encode(logList));
 
         ctx.response()
             .putHeader("Content-Type", "application/json")
@@ -62,7 +62,8 @@ public class AuditLogController {
         System.out.println(data);
 
         auditLogRepo.addLog(data.getString("logID"),
-                            data.getString("description"));
+                            data.getString("description"),
+                            data.getString("userID"));
 
         ctx.response().setStatusCode(201).end();
     }
