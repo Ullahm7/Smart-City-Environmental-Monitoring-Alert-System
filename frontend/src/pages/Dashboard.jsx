@@ -615,7 +615,7 @@ function Dashboard() {
                     </button>
                 </div>
 
-                {/* Regional Sensor Data - Shows all sensor types per region */}
+                {/* Regional Sensor Data - Shows all sensor types per region 
                 <div className="dashboard-card regions-sensors-card" style={{ gridColumn: 'span 2' }}>
                     <div className="card-header">
                         <h2>Regional Sensor Readings</h2>
@@ -662,7 +662,7 @@ function Dashboard() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </div>*/}
 
                 <div className="dashboard-card region-trends-card" style={{ gridColumn: 'span 2' }}>
                     <div className="card-header trends-header">
