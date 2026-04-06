@@ -25,7 +25,13 @@
 }
 
 .brand-icon {
-    font-size: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.brand-icon svg {
+    display: block;
 }
 
 .brand-text {

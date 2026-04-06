@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import ScemasLogo from './ScemasLogo.jsx';
 import './Navbar.css';
 
 function Navbar() {
@@ -23,8 +24,8 @@ function Navbar() {
     return (
         <nav className="navbar">
             <div className="navbar-brand" onClick={() => navigate('/dashboard')}>
-                <span className="brand-icon">🌍</span>
-                <span className="brand-text">EnviroMonitor</span>
+                <span className="brand-icon"><ScemasLogo size={34} /></span>
+                <span className="brand-text">SCEMAS</span>
             </div>
 
             <div className="navbar-links">

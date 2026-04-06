@@ -4,6 +4,16 @@ import { MapContainer, TileLayer, Rectangle, Popup, useMap } from 'react-leaflet
 import 'leaflet/dist/leaflet.css';
 import './Dashboard.css';
 
+const SENSOR_TYPES = [
+    'AIR_QUALITY',
+    'TEMPERATURE',
+    'HUMIDITY',
+    'NOISE',
+    'UV_INDEX',
+    'RAINFALL',
+    'WIND',
+];
+
 function Dashboard() {
     const navigate = useNavigate();
     
@@ -30,6 +40,11 @@ function Dashboard() {
     const [settingsDraft, setSettingsDraft] = useState(null);
     const [settingsSaving, setSettingsSaving] = useState(false);
     const [settingsError, setSettingsError] = useState('');
+    const [trendType, setTrendType] = useState('AIR_QUALITY');
+    const [trendMetric, setTrendMetric] = useState('avg');
+    const [regionTrendData, setRegionTrendData] = useState({});
+    const [trendLoading, setTrendLoading] = useState(false);
+    const [trendError, setTrendError] = useState('');
     // userId — in a real auth setup this would come from a session/token
     const userId = 'default';
 
@@ -44,6 +59,10 @@ function Dashboard() {
         document.documentElement.style.setProperty('--secondary', settings.secondaryColor);
         document.documentElement.style.setProperty('--accent', settings.accentColor);
     }, [settings.primaryColor, settings.secondaryColor, settings.accentColor]);
+
+    useEffect(() => {
+        fetchAggregatedTrendData();
+    }, [regions, trendType, trendMetric]);
 
     async function fetchAllData() {
         setLoading(true);
@@ -129,6 +148,78 @@ function Dashboard() {
         setSettingsDraft({ ...settings });
         setSettingsError('');
         setSettingsOpen(true);
+    }
+
+    async function fetchAggregatedTrendData() {
+        if (regions.length === 0) {
+            setRegionTrendData({});
+            return;
+        }
+
+        setTrendLoading(true);
+        setTrendError('');
+        try {
+            const start = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const entries = await Promise.all(regions.map(async (region) => {
+                const params = new URLSearchParams({
+                    region: region.regionID,
+                    type: trendType,
+                    metric: trendMetric,
+                    start,
+                });
+
+                const res = await fetch(`/api/data/aggregated?${params.toString()}`);
+                if (!res.ok) {
+                    throw new Error(`${region.regionName} (${res.status})`);
+                }
+
+                const data = await res.json();
+                const sorted = [...data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                return [region.regionID, sorted];
+            }));
+
+            setRegionTrendData(Object.fromEntries(entries));
+        } catch (e) {
+            setTrendError(`Failed to load aggregated trend data: ${e.message}`);
+        } finally {
+            setTrendLoading(false);
+        }
+    }
+
+    function renderTrendGraph(points, color) {
+        if (!points || points.length === 0) {
+            return <p className="trend-empty">No aggregated data available.</p>;
+        }
+
+        const width = 420;
+        const height = 140;
+        const pad = 14;
+        const values = points.map((p) => Number(p.data ?? 0));
+        const minValue = Math.min(...values);
+        const maxValue = Math.max(...values);
+        const range = Math.max(maxValue - minValue, 1);
+
+        const coords = points.map((point, index) => {
+            const x = pad + (index * (width - pad * 2)) / Math.max(points.length - 1, 1);
+            const y = height - pad - ((Number(point.data ?? 0) - minValue) / range) * (height - pad * 2);
+            return [x, y];
+        });
+
+        const linePoints = coords.map(([x, y]) => `${x},${y}`).join(' ');
+        const [lastX, lastY] = coords[coords.length - 1];
+
+        return (
+            <div className="trend-graph-wrap">
+                <svg viewBox={`0 0 ${width} ${height}`} className="trend-graph" preserveAspectRatio="none">
+                    <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#cbd5e1" strokeWidth="1" />
+                    <polyline points={linePoints} fill="none" stroke={color} strokeWidth="2.5" />
+                    <circle cx={lastX} cy={lastY} r="3.5" fill={color} />
+                </svg>
+                <div className="trend-latest">
+                    Latest: <strong>{Number(points[points.length - 1].data ?? 0).toFixed(2)}</strong>
+                </div>
+            </div>
+        );
     }
 
     // Add real AQI calculation based on sensor data
@@ -568,6 +659,38 @@ function Dashboard() {
                                         </p>
                                     )}
                                 </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="dashboard-card region-trends-card" style={{ gridColumn: 'span 2' }}>
+                    <div className="card-header trends-header">
+                        <h2>Regional Aggregated Trends</h2>
+                        <div className="trend-controls">
+                            <select value={trendType} onChange={(e) => setTrendType(e.target.value)}>
+                                {SENSOR_TYPES.map((type) => (
+                                    <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>
+                                ))}
+                            </select>
+                            <select value={trendMetric} onChange={(e) => setTrendMetric(e.target.value)}>
+                                <option value="avg">Average</option>
+                                <option value="max">Maximum</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {trendError && <div className="error-banner" style={{ marginBottom: '12px' }}>{trendError}</div>}
+                    {trendLoading && <p className="loading-text">Loading aggregated trends...</p>}
+
+                    <div className="region-trend-grid">
+                        {!trendLoading && regionsWithAQI.map((region) => (
+                            <div key={region.regionID} className="region-trend-card">
+                                <div className="region-trend-header">
+                                    <h3>{region.regionName}</h3>
+                                    <span>{trendMetric.toUpperCase()} · {trendType.replace(/_/g, ' ')}</span>
+                                </div>
+                                {renderTrendGraph(regionTrendData[region.regionID] || [], getRegionColor(region.regionID))}
                             </div>
                         ))}
                     </div>
