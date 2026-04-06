@@ -73,14 +73,11 @@ export default function SensorManagement() {
       if (!res.ok) throw new Error(`Create failed (${res.status})`);
       await addLog(`Sensor ${form.name} was created`)
       const data = await res.json();
-      // Store credentials for this sensor (only available from create response)
-      if (data.sensor?.id && data.certificate && data.privateKey) {
+      // Store full response for this sensor (only available from create response)
+      if (data.sensor?.id) {
         setCredentials((prev) => ({
           ...prev,
-          [data.sensor.id]: {
-            certificate: data.certificate,
-            privateKey: data.privateKey,
-          },
+          [data.sensor.id]: data,
         }));
       }
       setForm(EMPTY_FORM);
@@ -207,8 +204,8 @@ export default function SensorManagement() {
   );
 }
 
-function downloadPem(filename, content) {
-  const blob = new Blob([content], { type: "application/x-pem-file" });
+function downloadJson(filename, content) {
+  const blob = new Blob([JSON.stringify(content, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -247,20 +244,12 @@ function SensorRow({ sensor, onDelete, highlight, credentials }) {
       ))}
       <td style={s.td}>
         {credentials ? (
-          <div style={s.credentialButtons}>
-            <button
-              onClick={() => downloadPem(`${sensor.id}-cert.pem`, credentials.certificate)}
-              style={s.btnCredential}
-            >
-              Certificate
-            </button>
-            <button
-              onClick={() => downloadPem(`${sensor.id}-key.pem`, credentials.privateKey)}
-              style={s.btnCredential}
-            >
-              Private Key
-            </button>
-          </div>
+          <button
+            onClick={() => downloadJson(`${sensor.id}-credentials.json`, credentials)}
+            style={s.btnCredential}
+          >
+            Download Credentials
+          </button>
         ) : (
           <span style={s.muted}>-</span>
         )}
