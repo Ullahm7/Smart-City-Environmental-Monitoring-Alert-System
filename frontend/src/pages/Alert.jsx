@@ -10,6 +10,17 @@ const SENSOR_TYPES = ["AIR_QUALITY","TEMPERATURE","HUMIDITY","NOISE","UV_INDEX",
 const CONDITIONS   = ["GREATER_THAN","LESS_THAN"];
 const STATUSES     = ["ALL","ACTIVE","ACKNOWLEDGED","RESOLVED"];
  
+// Units for each sensor type
+const UNITS = {
+  AIR_QUALITY:  "μg/m³",
+  TEMPERATURE:  "°C",
+  HUMIDITY:     "%",
+  NOISE:        "dB",
+  UV_INDEX:     "UVI",
+  RAINFALL:     "mm/h",
+  WIND:         "km/h",
+};
+ 
 const EMPTY_FORM = {
   name:      "",
   region:    "",
@@ -61,7 +72,7 @@ export default function AlertManagement() {
         }),
       });
       if (!res.ok) throw new Error(`Create failed (${res.status})`);
-      await addLog(`Alert rule "${form.name}" created for region ${form.region} — ${form.type} ${form.condition} ${form.threshold}`);
+      await addLog(`Alert rule "${form.name}" created for region ${form.region} - ${form.type} ${form.condition} ${form.threshold} ${UNITS[form.type] ?? ""}`);
       setForm(EMPTY_FORM);
       fetchRules();
     } catch (e) {
@@ -209,16 +220,20 @@ export default function AlertManagement() {
           </label>
  
           <label style={s.fieldLabel}>
+            {/* Label updates to show unit based on selected type */}
             Threshold Value
-            <input
-              style={s.input}
-              type="number"
-              step="any"
-              required
-              placeholder="e.g. 100"
-              value={form.threshold}
-              onChange={(e) => setForm((f) => ({ ...f, threshold: e.target.value }))}
-            />
+            <div style={s.inputWithUnit}>
+              <input
+                style={{ ...s.input, borderRadius: "5px 0 0 5px", borderRight: "none" }}
+                type="number"
+                step="any"
+                required
+                placeholder="e.g. 100"
+                value={form.threshold}
+                onChange={(e) => setForm((f) => ({ ...f, threshold: e.target.value }))}
+              />
+              <span style={s.unitSuffix}>{UNITS[form.type] ?? ""}</span>
+            </div>
           </label>
  
           <label style={s.fieldLabel}>
@@ -271,7 +286,12 @@ export default function AlertManagement() {
                     <td style={{ ...s.td, ...s.mono }}>{rule.region}</td>
                     <td style={s.td}>{rule.type?.replace(/_/g, " ")}</td>
                     <td style={s.td}>{rule.condition?.replace(/_/g, " ")}</td>
-                    <td style={s.td}>{rule.threshold}</td>
+                    <td style={s.td}>
+                      {rule.threshold}
+                      {UNITS[rule.type] && (
+                        <span style={s.unitInline}> {UNITS[rule.type]}</span>
+                      )}
+                    </td>
                     <td style={s.td}>
                       <button onClick={() => handleDeleteRule(rule)} style={s.btnDelete}>
                         Delete
@@ -324,34 +344,41 @@ export default function AlertManagement() {
                 </tr>
               </thead>
               <tbody>
-                {history.map((alert) => (
-                  <tr key={alert.id} style={s.tr}>
-                    <td style={s.td}>{alert.id}</td>
-                    <td style={s.td}>{alert.ruleName}</td>
-                    <td style={{ ...s.td, ...s.mono }}>{alert.region}</td>
-                    <td style={s.td}>{alert.type?.replace(/_/g, " ")}</td>
-                    <td style={s.td}>{alert.triggeringValue?.toFixed(2)}</td>
-                    <td style={s.td}>
-                      {alert.condition?.replace(/_/g, " ")} {alert.threshold}
-                    </td>
-                    <td style={s.td}>{formatTimestamp(alert.timestamp)}</td>
-                    <td style={s.td}>{statusBadge(alert.status)}</td>
-                    <td style={s.td}>
-                      <div style={s.row}>
-                        {alert.status === "ACTIVE" && (
-                          <button onClick={() => handleAcknowledge(alert)} style={s.btnAck}>
-                            Acknowledge
-                          </button>
-                        )}
-                        {(alert.status === "ACTIVE" || alert.status === "ACKNOWLEDGED") && (
-                          <button onClick={() => handleResolve(alert)} style={s.btnResolve}>
-                            Resolve
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {history.map((alert) => {
+                  const unit = UNITS[alert.type] ?? "";
+                  return (
+                    <tr key={alert.id} style={s.tr}>
+                      <td style={s.td}>{alert.id}</td>
+                      <td style={s.td}>{alert.ruleName}</td>
+                      <td style={{ ...s.td, ...s.mono }}>{alert.region}</td>
+                      <td style={s.td}>{alert.type?.replace(/_/g, " ")}</td>
+                      <td style={s.td}>
+                        {alert.triggeringValue?.toFixed(2)}
+                        {unit && <span style={s.unitInline}> {unit}</span>}
+                      </td>
+                      <td style={s.td}>
+                        {alert.condition?.replace(/_/g, " ")} {alert.threshold}
+                        {unit && <span style={s.unitInline}> {unit}</span>}
+                      </td>
+                      <td style={s.td}>{formatTimestamp(alert.timestamp)}</td>
+                      <td style={s.td}>{statusBadge(alert.status)}</td>
+                      <td style={s.td}>
+                        <div style={s.row}>
+                          {alert.status === "ACTIVE" && (
+                            <button onClick={() => handleAcknowledge(alert)} style={s.btnAck}>
+                              Acknowledge
+                            </button>
+                          )}
+                          {(alert.status === "ACTIVE" || alert.status === "ACKNOWLEDGED") && (
+                            <button onClick={() => handleResolve(alert)} style={s.btnResolve}>
+                              Resolve
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -361,7 +388,7 @@ export default function AlertManagement() {
   );
 }
  
-// ── Styles (matching Audit/Region/Sensor pattern) ────────────────────────────
+// ── Styles ───────────────────────────────────────────────────────────────────
 const s = {
   page: {
     maxWidth: 1100,
@@ -428,6 +455,32 @@ const s = {
     width: "100%",
     boxSizing: "border-box",
     background: "#fff",
+  },
+  inputWithUnit: {
+    display: "flex",
+    alignItems: "stretch",
+  },
+  unitSuffix: {
+    padding: "0.5rem 0.6rem",
+    background: "#f5f5f5",
+    border: "1px solid #d0d0d0",
+    borderLeft: "none",
+    borderRadius: "0 5px 5px 0",
+    fontSize: "0.85rem",
+    color: "#666",
+    whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+  },
+  unitHint: {
+    fontWeight: 400,
+    color: "#888",
+    marginLeft: "0.3rem",
+  },
+  unitInline: {
+    fontSize: "0.8em",
+    color: "#666",
+    marginLeft: "0.15rem",
   },
   btnPrimary: {
     padding: "0.5rem 1.1rem",
