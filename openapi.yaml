@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: Sensor Data Service API
+  description: |
+    Public read-only REST API for accessing sensor data.
+
+    This API exposes sensor readings from the database, including
+    - Raw sensor data
+    - 5-minute rolling averages
+    - Hourly maximums
+  version: 1.0.0
+  contact:
+    name: SFWRENG 3A04 T03 Group 01
+
+servers:
+  - url: http://localhost:8888
+    description: Local development server
+
+tags:
+  - name: Data
+    description: Sensor data retrieval endpoints
+
+paths:
+  /api/data/current:
+    get:
+      tags:
+        - Data
+      summary: Get current sensor readings
+      description: |
+        Returns a JSON array of the latest raw readings matching the specified filters.
+        If no filters are supplied, returns everything currently cached within the time range.
+      operationId: getCurrentData
+      parameters:
+        - name: region
+          in: query
+          description: Filter by region UUID
+          required: false
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: type
+          in: query
+          description: Filter by sensor type (case-insensitive)
+          required: false
+          schema:
+            $ref: '#/components/schemas/SensorType'
+          example: "TEMPERATURE"
+        - name: start
+          in: query
+          description: Start timestamp for data range (RFC3339 format). Defaults to 30 minutes ago.
+          required: false
+          schema:
+            type: string
+            format: date-time
+          example: "2024-01-15T10:30:00Z"
+        - name: end
+          in: query
+          description: End timestamp for data range (RFC3339 format). Defaults to unbounded.
+          required: false
+          schema:
+            type: string
+            format: date-time
+          example: "2024-01-15T11:00:00Z"
+      responses:
+        '200':
+          description: Successful response with array of sensor readings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SensorReading'
+              example:
+                - region: "region-001"
+                  regionId: "550e8400-e29b-41d4-a716-446655440000"
+                  type: "TEMPERATURE"
+                  data: 23.5
+                  timestamp: "2024-01-15T10:45:00Z"
+                - region: "region-001"
+                  regionId: "550e8400-e29b-41d4-a716-446655440000"
+                  type: "HUMIDITY"
+                  data: 65.2
+                  timestamp: "2024-01-15T10:44:30Z"
+        '400':
+          description: Invalid request parameters
+          content:
+            text/plain:
+              schema:
+                type: string
+              examples:
+                invalidType:
+                  summary: Invalid sensor type
+                  value: "Invalid type. Valid values: AIR_QUALITY, TEMPERATURE, HUMIDITY, NOISE, UV_INDEX, RAINFALL, WIND"
+                invalidTimestamp:
+                  summary: Invalid timestamp format
+                  value: "Invalid timestamp format. Use RFC3339 format (e.g., 2024-01-15T10:30:00Z)"
+
+  /api/data/aggregated:
+    get:
+      tags:
+        - Data
+      summary: Get aggregated sensor data
+      description: |
+        Returns aggregated sensor data (rolling averages or hourly maximums) for a specific
+        region and sensor type combination.
+      operationId: getAggregatedData
+      parameters:
+        - name: region
+          in: query
+          description: Region UUID
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: type
+          in: query
+          description: Sensor type (case-insensitive)
+          required: true
+          schema:
+            $ref: '#/components/schemas/SensorType'
+          example: "TEMPERATURE"
+        - name: metric
+          in: query
+          description: |
+            Aggregation metric to retrieve:
+            - `avg`: 5-minute rolling average (default)
+            - `max`: Hourly maximum
+          required: false
+          schema:
+            type: string
+            enum:
+              - avg
+              - max
+            default: avg
+          example: "avg"
+        - name: start
+          in: query
+          description: Start timestamp for data range (RFC3339 format). Defaults to 30 minutes ago.
+          required: false
+          schema:
+            type: string
+            format: date-time
+          example: "2024-01-15T10:30:00Z"
+        - name: end
+          in: query
+          description: End timestamp for data range (RFC3339 format). Defaults to unbounded.
+          required: false
+          schema:
+            type: string
+            format: date-time
+          example: "2024-01-15T11:00:00Z"
+      responses:
+        '200':
+          description: Successful response with aggregated sensor data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SensorReading'
+              example:
+                - region: "region-001"
+                  regionId: "550e8400-e29b-41d4-a716-446655440000"
+                  type: "TEMPERATURE"
+                  data: 22.8
+                  timestamp: "2024-01-15T10:45:00Z"
+        '400':
+          description: Invalid or missing request parameters
+          content:
+            text/plain:
+              schema:
+                type: string
+              examples:
+                missingParams:
+                  summary: Missing required parameters
+                  value: "Both 'region' and 'type' query parameters are required"
+                invalidType:
+                  summary: Invalid sensor type
+                  value: "Invalid type. Valid values: AIR_QUALITY, TEMPERATURE, HUMIDITY, NOISE, UV_INDEX, RAINFALL, WIND"
+                invalidTimestamp:
+                  summary: Invalid timestamp format
+                  value: "Invalid timestamp format. Use RFC3339 format (e.g., 2024-01-15T10:30:00Z)"
+
+components:
+  schemas:
+    SensorType:
+      type: string
+      description: Type of sensor measurement
+      enum:
+        - AIR_QUALITY
+        - TEMPERATURE
+        - HUMIDITY
+        - NOISE
+        - UV_INDEX
+        - RAINFALL
+        - WIND
+
+    SensorReading:
+      type: object
+      description: |
+        Anonymized sensor data reading. Note that individual sensor IDs are not
+        exposed - data is anonymized and grouped by region.
+      properties:
+        region:
+          type: string
+          description: Human-readable region identifier
+          example: "region-001"
+        regionId:
+          type: string
+          format: uuid
+          description: Unique region identifier (UUID)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        type:
+          $ref: '#/components/schemas/SensorType'
+        data:
+          type: number
+          format: double
+          description: Sensor reading value
+          example: 23.5
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the reading (RFC3339 format)
+          example: "2024-01-15T10:45:00Z"
+      required:
+        - region
+        - regionId
+        - type
+        - data
+        - timestamp
