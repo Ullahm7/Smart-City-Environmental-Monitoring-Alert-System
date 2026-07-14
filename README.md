@@ -140,6 +140,9 @@ The `doc/` folder contains the full design deliverable set produced for this pro
   3. **Detailed Design** — state charts, sequence diagrams, detailed class diagram
 - [`doc/diag/`](./doc/diag) — every diagram referenced in the deliverables as standalone images (system architecture, use case, controller state diagrams, sequence diagrams, and the 3-part detailed class diagram)
 
+![City Dashboard](doc/diag/City%20Dashboard.png)
+![Sensor History](doc/diag/Sensor%20History%20&%20Trends.png)
+
 ## Team
 
 - Muhammad Ullah 
